@@ -702,6 +702,21 @@ bool ldCheckAttribute(CorNode* attrP, LdOp op, LdAttrType attrTypeFromDb, CorAll
           ldError(400, LD_ERROR_BAD_REQUEST_DATA, "Invalid valueType", "Attribute '%s': 'valueType' must be a string", attrP->name);
           return false;
         }
+
+        // § 5.2.6.4.6: a LanguageProperty's valueType "shall be equal to langString" - expanded by now (valueType
+        // is @type:@vocab, the core context maps langString to rdf's IRI); the short forms for a tree not expanded
+        if (attrType == LdAttrLanguageProperty)
+        {
+          const char* vt = childP->value.s;
+
+          if ((strcmp(vt, "http://www.w3.org/1999/02/22-rdf-syntax-ns#langString") != 0) &&
+              (strcmp(vt, "rdf:langString") != 0) &&
+              (strcmp(vt, "langString") != 0))
+          {
+            ldError(400, LD_ERROR_BAD_REQUEST_DATA, "Invalid valueType", "Attribute '%s': the 'valueType' of a LanguageProperty must be langString, not '%s'", attrP->name, vt);
+            return false;
+          }
+        }
       }
 
       continue;  // Core term handled -- skip sub-attribute recursion
