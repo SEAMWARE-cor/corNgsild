@@ -74,9 +74,10 @@ static bool attrTypeCanBeInferred(LdAttrType attrType)
 
 // -----------------------------------------------------------------------------
 //
-// attrToConcise -
+// attrToConcise - inArray: an instance of a multi-attribute - it stays an object, never collapses to its bare
+// value (see the collapse below)
 //
-static void attrToConcise(CorNode* attrP)
+static void attrToConcise(CorNode* attrP, bool inArray)
 {
   if (attrP->type != CorObject)
     return;
@@ -111,7 +112,7 @@ static void attrToConcise(CorNode* attrP)
   for (CorNode* childP = attrP->value.head; childP != NULL; childP = childP->next)
   {
     if (isAttrKeyword(childP) == false)
-      attrToConcise(childP);
+      attrToConcise(childP, false);
   }
 
   // A Property or GeoProperty with no sub-attributes (sysAttrs are scalars
@@ -120,7 +121,14 @@ static void attrToConcise(CorNode* attrP)
   // these two types may collapse; every other type keeps its value-key so the
   // concise form stays lossless (a bare array/object would be indistinguishable
   // from a Property value).
-  if ((attrType == LdAttrProperty) || (attrType == LdAttrGeoProperty))
+  //
+  // An instance of a multi-attribute does not collapse: the array is all objects -
+  //
+  //     "name": [ { "value": "Eiffel Tower" }, { "value": "Tour Eiffel", "datasetId": "urn:fr" } ]
+  //
+  // not a bare value beside objects. Decided by the ETSI test-suite group on MR !304 (018_23_10), 2026-11-03.
+  //
+  if ((inArray == false) && ((attrType == LdAttrProperty) || (attrType == LdAttrGeoProperty)))
   {
     CorNode* valueP    = NULL;
     bool     valueOnly = true;
@@ -172,10 +180,10 @@ bool ldToConcise(CorNode* entityP, CorAlloc* faP)
     if (childP->type == CorArray)
     {
       for (CorNode* instP = childP->value.head; instP != NULL; instP = instP->next)
-        attrToConcise(instP);
+        attrToConcise(instP, true);
     }
     else
-      attrToConcise(childP);
+      attrToConcise(childP, false);
   }
 
   COR_LIB_T(LdTRender, "Entity converted to concise format");
