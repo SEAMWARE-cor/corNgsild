@@ -722,6 +722,18 @@ bool ldCheckAttribute(CorNode* attrP, LdOp op, LdAttrType attrTypeFromDb, CorAll
       continue;  // Core term handled -- skip sub-attribute recursion
     }
 
+    //
+    // id cannot name a sub-attribute: the core @context maps it to the JSON-LD keyword @id - expanded, the
+    // "sub-attribute" would be the node's identifier, not a Property of it. A term of the request's @context
+    // aliasing @id arrives here as "@id".
+    //
+    if ((ldTermId(childP) == CorTermId) || (strcmp(childP->name, "@id") == 0))
+    {
+      ldError(400, LD_ERROR_BAD_REQUEST_DATA, "Invalid Attribute Member",
+              "Attribute '%s' has a member '%s' - id is the Entity's identifier (JSON-LD @id), it cannot name a sub-attribute", attrP->name, childP->name);
+      return false;
+    }
+
     // Not a core context term -- it's a user-defined sub-attribute
     if (childP->type == CorObject)
     {
