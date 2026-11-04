@@ -11,6 +11,7 @@
 #include <string.h>                                      // strcmp
 
 #include "corAlloc/CorAlloc.h"                           // CorAlloc
+#include "corJsonld/corLdExpandTree.h"                 // corLdVocabValueExpand
 #include "corJsonld/corLdExpand.h"                       // corLdExpand
 #include "corNgsild/LdQ.h"                               // LdQNode
 #include "corNgsild/LdProblem.h"                         // LD_ERROR_BAD_REQUEST_DATA
@@ -98,6 +99,65 @@ static void expandWalk(LdQNode* nodeP, char** evV, CorLdContext* contextP, CorAl
 
 // -----------------------------------------------------------------------------
 //
+// memberWalk - expand the values of every term on valueType or objectType, as they are stored
+//
+// Both are @type:@vocab in the core @context, so their stored value is an IRI (corLdExpandTree) - a
+// core term's own one: `langString` is rdf's. A q value compared with it is expanded by the same
+// rule, expandValues or not: `name.valueType=="String"` and the IRI it stands for are one query.
+//
+static void memberWalk(LdQNode* nodeP, CorLdContext* contextP, CorAlloc* kaP)
+{
+  if (nodeP == NULL)
+    return;
+
+  if (nodeP->type == LdQTermNode)
+  {
+    LdQTerm* termP = &nodeP->term;
+
+    if ((termP->memberLeaf == false) || (termP->op == LdQPattern) || (termP->op == LdQNotPattern))
+      return;
+
+    const char* leaf = termP->subPathV[termP->subPathN - 1];
+
+    if ((strcmp(leaf, "valueType") != 0) && (strcmp(leaf, "objectType") != 0))
+      return;
+
+    if ((termP->valueType == LdQString) && (termP->value.s != NULL) && (termP->value.s[0] != 0))
+    {
+      char* expanded = corLdVocabValueExpand(contextP, leaf, termP->value.s, kaP);
+
+      if (expanded != NULL)
+        termP->value.s = expanded;
+    }
+    else if (termP->valueType == LdQValueList)
+    {
+      for (int i = 0; i < termP->value.list.count; i++)
+      {
+        LdQValueType itemType = (termP->value.list.itemTypeV != NULL) ? termP->value.list.itemTypeV[i] : LdQString;
+
+        if ((itemType != LdQString) || (termP->value.list.values[i] == NULL) || (termP->value.list.values[i][0] == 0))
+          continue;
+
+        char* expanded = corLdVocabValueExpand(contextP, leaf, termP->value.list.values[i], kaP);
+
+        if (expanded != NULL)
+          termP->value.list.values[i] = expanded;
+      }
+    }
+  }
+  else if ((nodeP->type == LdQAndNode) || (nodeP->type == LdQOrNode))
+  {
+    for (int i = 0; i < nodeP->group.count; i++)
+      memberWalk(nodeP->group.childV[i], contextP, kaP);
+  }
+  else if (nodeP->type == LdQLinkedNode)
+    memberWalk(nodeP->linked.subQ, contextP, kaP);
+}
+
+
+
+// -----------------------------------------------------------------------------
+//
 // ldAttrListExpand -
 //
 char** ldAttrListExpand(const char* csv, CorLdContext* contextP, CorAlloc* kaP)
@@ -156,4 +216,6 @@ void ldQExpandValues(LdQNode* qExpr, char** evV, CorLdContext* contextP, CorAllo
 {
   if ((qExpr != NULL) && (evV != NULL))
     expandWalk(qExpr, evV, contextP, kaP);
+
+  memberWalk(qExpr, contextP, kaP);
 }

@@ -196,6 +196,23 @@ static void expandAttrPath(LdQTerm* termP, const char* start, int len, CorAlloc*
       segStart = i + 1;
     }
   }
+
+  //
+  // § 7.2.3: the name after the last dot is the target element. A member of the attribute is one too
+  // (Example 9, temperature.observedAt), and valueType, objectType and unitCode are members: no value
+  // of their own, they ARE the value compared. observedAt / createdAt / modifiedAt have their own,
+  // timestamp, handling.
+  //
+  termP->memberLeaf = false;
+
+  if (termP->subPathN > 0)
+  {
+    const char* leaf = termP->subPathV[termP->subPathN - 1];
+
+    termP->memberLeaf = ((strcmp(leaf, "valueType")  == 0) ||
+                         (strcmp(leaf, "objectType") == 0) ||
+                         (strcmp(leaf, "unitCode")   == 0));
+  }
 }
 
 

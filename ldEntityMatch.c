@@ -385,8 +385,13 @@ static bool matchTermOnInstance(CorNode* entityP, LdQTerm* term, int instIx)
   // is where datasetId lives (§ 8.5: no multi-attribute support below it). Once
   // a sub-path has been walked, containerP is already one instance's object and
   // the leaf is resolved normally.
-  CorNode* valueP = (containerP == entityP) ? getAttrValueAt(containerP, leafName, instIx)
-                                           : getAttrValue(containerP, leafName);
+  CorNode* valueP;
+
+  if (term->memberLeaf == true)                      // valueType, objectType, unitCode: the member is the value
+    valueP = corTreeLookup(containerP, leafName);
+  else
+    valueP = (containerP == entityP) ? getAttrValueAt(containerP, leafName, instIx)
+                                     : getAttrValue(containerP, leafName);
   if (valueP == NULL)
     return (term->op == LdQNotExists);
 
