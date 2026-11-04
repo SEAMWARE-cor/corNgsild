@@ -300,7 +300,7 @@ static bool checkLanguageMap(CorNode* lmP)
 
 // -----------------------------------------------------------------------------
 //
-// checkObjectList - validate an objectList (array of URIs)
+// checkObjectList - validate an objectList (array of URIs - its {"object": <URI>} items already reduced, ldListInputReduce)
 //
 static bool checkObjectList(CorNode* listP)
 {
@@ -314,7 +314,7 @@ static bool checkObjectList(CorNode* listP)
   {
     if (itemP->type != CorString)
     {
-      ldError(400, LD_ERROR_BAD_REQUEST_DATA, "Invalid ListRelationship", "'objectList' items must be URI strings");
+      ldError(400, LD_ERROR_BAD_REQUEST_DATA, "Invalid ListRelationship", "'objectList' items must be URIs or {\"object\": <URI>}");
       return false;
     }
     URI_CHECK(itemP->value.s);
@@ -466,7 +466,8 @@ bool ldCheckAttribute(CorNode* attrP, LdOp op, LdAttrType attrTypeFromDb, CorAll
   // marker — so it is deliberately excluded.
   if (valueNodeP->type == CorString && strcmp(valueNodeP->value.s, "urn:ngsi-ld:null") == 0)
   {
-    if (!nullAllowed && (attrType == LdAttrProperty || attrType == LdAttrRelationship || attrType == LdAttrVocabProperty))
+    if (!nullAllowed && (attrType == LdAttrProperty || attrType == LdAttrRelationship || attrType == LdAttrVocabProperty ||
+                         attrType == LdAttrListProperty || attrType == LdAttrListRelationship))
     {
       ldError(400, LD_ERROR_BAD_REQUEST_DATA, "Invalid Value", "'urn:ngsi-ld:null' is not allowed as the value of attribute '%s'", attrP->name);
       return false;

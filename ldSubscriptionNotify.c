@@ -63,6 +63,7 @@
 #include "corJsonld/corLdInit.h"                        // corLdCoreContext
 #include "corJsonld/CorLdContext.h"                       // CorLdContext
 #include "corNgsild/ldRender.h"                          // ldToConcise, ldToSimplified
+#include "corNgsild/ldObjectList.h"                      // ldObjectListWrap
 #include "corNgsild/ldPickOmit.h"                       // ldPickOmit
 #include "corNgsild/ldLangReduce.h"                     // ldLangReduce
 #include "corNgsild/ldNotifyStatsHook.h"                // ldNotifyStatsHookInvoke
@@ -888,6 +889,10 @@ static void notificationSendMany(LdSubCacheItem* itemP, LdNotifyPendingEntry** e
         ldToConcise(eP, &corRest.kalloc);
     }
   }
+
+  // § 5.2.6.4.9: in the normalized form each objectList item is {"object": <URI>}
+  if ((itemP->format == LdFormatNone) || (itemP->format == LdFormatNormalized))
+    ldObjectListWrap(dataArray, corRest.kallocP);
 
   // Compact expanded URIs to short names (covers every data[] entry).
   // Use the sub's jsonldContext when set so user-vocabulary terms (e.g.

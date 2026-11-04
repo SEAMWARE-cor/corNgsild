@@ -96,6 +96,7 @@ endif
 
 debug: all
 LIB_SOURCES   = corNgsild.c \
+                ldObjectList.c \
                 ldIdGenerate.c \
                 ldCoreTermIds.c \
                 ldLanguageKey.c \

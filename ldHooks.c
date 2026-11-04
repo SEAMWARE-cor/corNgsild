@@ -42,6 +42,7 @@
 #include "corNgsild/ldCsrSubNotify.h"                  // ldCsrSubPendingDiscard
 #include "corRest/CorRestIn.h"                      // corAcceptParse, CorMimeType
 #include "corNgsild/ldRender.h"                           // ldToSimplified, ldToConcise
+#include "corNgsild/ldObjectList.h"                       // ldListInputReduce, ldObjectListWrap
 #include "corNgsild/LdNormalizeInput.h"                    // ldNormalizeInput
 #include "corNgsild/ldTermId.h"                           // ldTermId, CorTerm*
 #include "corNgsild/LdSnapshotCache.h"                // ldSnapshotRequestRelease
@@ -1084,6 +1085,17 @@ static void ldParseHook(void)
     ldStripSysAttrs(corRest.in.requestTree);
 
   //
+  // § 5.2.6.4.9 - an objectList item is a URI or {"object": <URI>}, and ["urn:ngsi-ld:null"] as a
+  // valueList / objectList is the NGSI-LD Null (both lists are @container @list). Reduced to the one
+  // form the broker stores, for every body that carries Attributes - the temporal ones too.
+  //
+  if (corRest.in.requestTree != NULL && corRest.in.urlPath != NULL
+      && (strncmp(corRest.in.urlPath, "/ngsi-ld/v1/entities",         20) == 0
+          || strncmp(corRest.in.urlPath, "/ngsi-ld/v1/entityOperations", 28) == 0
+          || strncmp(corRest.in.urlPath, "/ngsi-ld/v1/temporal/",        21) == 0))
+    ldListInputReduce(corRest.in.requestTree);
+
+  //
   // Normalize input: convert simplified/concise NGSI-LD to normalized format.
   // Only applies to entity payloads — subscription and registration payloads
   // are passed through as-is.
@@ -1475,6 +1487,10 @@ static void ldRenderHook(void)
     // The strip postponed above, now that the timestamps have been read
     if ((corNgsild.sysAttrs == false) && temporalSimplified)
       ldStripSysAttrs(corRest.out.responseTree);
+
+    // § 5.2.6.4.9: in the normalized form each objectList item is {"object": <URI>}
+    if ((corNgsild.format == LdFormatNone) || (corNgsild.format == LdFormatNormalized))
+      ldObjectListWrap(treeP, corRest.kallocP);
   }
 
   // § 6.3.4 Accept negotiation already ran at the top of this hook —

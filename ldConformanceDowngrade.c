@@ -19,6 +19,7 @@
 #include "corTree/corTreeChildReplace.h"                 // corTreeChildReplace
 
 #include "corNgsild/ldTermId.h"                           // ldTermId, CorTerm*
+#include "corNgsild/ldObjectList.h"                       // ldObjectListUnwrap
 #include "corNgsild/ldConformanceDowngrade.h"             // Own interface
 
 
@@ -103,7 +104,13 @@ static void reformatAttr(CorNode* attrP)
 
   CorNode* srcP = corTreeLookup(attrP, renameKey);
   if (srcP != NULL)
+  {
     ldNodeRename(srcP, (char*) renameDest);
+
+    // A Relationship's object is URIs - the normalized ListRelationship's {"object": <URI>} items are not
+    if (strcmp(t, "ListRelationship") == 0)
+      ldObjectListUnwrap(srcP);
+  }
 
   typeP->value.s = (char*) newType;
 }

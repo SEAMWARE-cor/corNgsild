@@ -312,7 +312,10 @@ bool ldToSimplified(CorNode* entityP, CorAlloc* faP)
       // `entity` on the Relationship instance. In simplified format with
       // join, the value of the Relationship is the inlined Entity (itself
       // simplified) — not the URI in `object`.
+      // A ListRelationship's are under `entityList` (§ 5.2.6.4.9), an array always.
       CorNode* entityValP = corTreeLookup(childP, "entity");
+      if (entityValP == NULL)
+        entityValP = corTreeLookup(childP, "entityList");
       if (entityValP != NULL && entityValP->type == CorObject)
       {
         ldToSimplified(entityValP, faP);
