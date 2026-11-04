@@ -95,6 +95,9 @@ typedef struct LdQTerm
                             // dots travel %2E-encoded (ldQRender) and are
                             // decoded segment-wise at parse.
   int           subPathN;
+  bool          memberLeaf;  // the last subPathV segment is a member of the attribute (valueType,
+                             // objectType, unitCode), not a sub-attribute: the term compares that
+                             // member itself - it has no value of its own to look into
   char**        valuePathV;  // § 4.9 "[...]" — path INTO the value: opaque
                              // JSON member names (NO context expansion /
                              // compaction), dot-separated inside the
