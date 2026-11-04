@@ -7,7 +7,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 // Discovery § 5.7.11 mode 3: forward /types, /types/{type}, /attributes,
-// /attributes/{attrId} to every CSR that supports the matching retrieve
+// /attributes/{attrId} to every non-auxiliary CSR that supports the matching retrieve
 // op (which is part of federationOps — the default op set). Parse each
 // response and merge it into the aggregation already carrying local
 // and CSR-declared data.
@@ -397,6 +397,16 @@ static LdRegCacheItem** regsPinned(LdRegCache* cacheP, int* nP)
   for (LdRegCacheItem* it = cacheP->itemList; it != NULL; it = it->next)
   {
     if (it->endpoint == NULL)
+      continue;
+
+    //
+    // An auxiliary registration is never forwarded a discovery request: TS 104-175 § 4.3.6 / § 9 limit
+    // auxiliary distributed operations to context information consumption (§ 10.4), and discovery is
+    // § 10.6. Its operations default to federationOps like any registration's, so the op check below
+    // would let it through. What it DECLARES is still listed - that is the Context Registry, which
+    // § 10.6.2 lets the answer be built from (ldDiscoveryRegAugment*).
+    //
+    if (it->mode == LdRegModeAuxiliary)
       continue;
 
     if (n == cap)
