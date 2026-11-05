@@ -175,6 +175,15 @@ static void addPair(CorNode*     valuesArray,
       corTreeChildAdd(wrapper, clone);
       corTreeChildAdd(pair, wrapper);
     }
+    else if ((clone->type != CorArray) && ((strcmp(firstKey, "valueList") == 0) || (strcmp(firstKey, "objectList") == 0)))
+    {
+      // ListProperty / ListRelationship: the pair's first element "shall be an ordered array" (§ 5.3.2.6). A deleted
+      // instance stores the NGSI-LD Null as a bare string (§ 5.3.2.5) - as a list that is ["urn:ngsi-ld:null"].
+      ldNodeRename(clone, NULL);
+      CorNode* listP = corTreeArray(allocP, NULL);
+      corTreeChildAdd(listP, clone);
+      corTreeChildAdd(pair, listP);
+    }
     else
     {
       ldNodeRename(clone, NULL);
