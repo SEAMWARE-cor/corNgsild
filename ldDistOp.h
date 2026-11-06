@@ -374,6 +374,11 @@ typedef struct LdDistOpGroup
   bool              opConflict;   // true → emit Conflict on !ldRegOpSupported; false → silent skip
 } LdDistOpGroup;
 
+// ldRegInfoCoversEntity - does one of riP's EntityInfos cover the entity (type, id/idPattern)?
+// typeV NULL: the type is not known and not checked. An information[] element without entities
+// covers every entity.
+extern bool ldRegInfoCoversEntity(LdRegInfo* riP, const char* entityId, char** typeV);
+
 // Sweep groups, apply pre-checks, allocate one entry per surviving candidate.
 // Entries are emitted in group order (the caller's intended composition order).
 // For perRi=true, multiple entries may share a csr (one per matching RegistrationInfo).
@@ -388,7 +393,8 @@ extern int ldDistOpEntriesBuild(
     const char*          opName,             // for Conflict error detail (e.g. "createEntity")
     const char*          entityIdForErrors,  // for Conflict.entityId (may be NULL)
     bool                 perRi,
-    const char*          riEntityIdCheck,    // non-NULL → require entityInfoCoversId
+    const char*          riEntityIdCheck,    // non-NULL → require ldRegInfoCoversEntity
+    char**               riEntityTypeV,      // the entity's types (expanded), NULL = not known: not checked
     const char*          riAttrIriCheck,     // non-NULL → require infoCoversAttr
     CorNode*             errorsArrayP,
     LdDistOpEntry**      entriesPP);
