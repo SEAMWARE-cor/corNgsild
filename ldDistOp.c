@@ -1643,13 +1643,34 @@ const char* ldDistOpForwardFailureReason(int upCode, const char* upErr)
 // duplication of entityInfoCoversId / infoCoversAttr can be removed when
 // every distop route is migrated to the new API).
 //
-static bool ldoEntityInfoCoversId(LdRegInfo* riP, const char* entityId)
+// -----------------------------------------------------------------------------
+//
+// ldRegInfoCoversEntity - does one of riP's EntityInfos cover this entity?
+//
+// An EntityInfo covers it when its type is one of the entity's (typeV, expanded - NULL when the
+// request does not say: the type is then not checked) and its id equals the entity id, or its
+// idPattern matches it, or it has neither. Each (information[i], entities[j]) of a registration is
+// a part of its own: a write reaches a part only for an entity that part covers.
+//
+bool ldRegInfoCoversEntity(LdRegInfo* riP, const char* entityId, char** typeV)
 {
-  if (riP == NULL || entityId == NULL) return true;
+  if (riP == NULL) return true;
+  if (riP->entityInfoV == NULL) return true;   // attributes only: every entity
+
   for (LdRegEntityInfo* eiP = riP->entityInfoV; eiP != NULL; eiP = eiP->next)
   {
-    if (eiP->id == NULL && eiP->idPatternList == NULL) return true;
-    if (eiP->id != NULL && strcmp(eiP->id, entityId) == 0) return true;
+    if ((typeV != NULL) && (typeV[0] != NULL) && (eiP->type != NULL))
+    {
+      bool typeMatch = false;
+      for (int t = 0; typeV[t] != NULL; t++)
+        if (strcmp(typeV[t], eiP->type) == 0) { typeMatch = true; break; }
+      if (typeMatch == false)
+        continue;
+    }
+
+    if (entityId == NULL)                                   return true;
+    if ((eiP->id == NULL) && (eiP->idPatternList == NULL))  return true;
+    if ((eiP->id != NULL) && (strcmp(eiP->id, entityId) == 0)) return true;
     for (LdRegIdPattern* patP = eiP->idPatternList; patP != NULL; patP = patP->next)
       if (regexec(&patP->regex, entityId, 0, NULL, 0) == 0) return true;
   }
@@ -1679,6 +1700,7 @@ int ldDistOpEntriesBuild(const LdDistOpGroup  groupV[],
                          const char*          entityIdForErrors,
                          bool                 perRi,
                          const char*          riEntityIdCheck,
+                         char**               riEntityTypeV,
                          const char*          riAttrIriCheck,
                          CorNode*             errorsArrayP,
                          LdDistOpEntry**      entriesPP)
@@ -1752,7 +1774,7 @@ int ldDistOpEntriesBuild(const LdDistOpGroup  groupV[],
 
       for (LdRegInfo* riP = csr->infoV; riP != NULL; riP = riP->next)
       {
-        if (riEntityIdCheck != NULL && !ldoEntityInfoCoversId(riP, riEntityIdCheck)) continue;
+        if (riEntityIdCheck != NULL && !ldRegInfoCoversEntity(riP, riEntityIdCheck, riEntityTypeV)) continue;
         if (riAttrIriCheck  != NULL && !ldoInfoCoversAttr(riP, riAttrIriCheck))     continue;
 
         entries[count].csr       = csr;
