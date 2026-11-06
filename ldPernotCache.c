@@ -417,6 +417,44 @@ static LdPernotItem* itemBuild(CorNode* subTree, void* tenantP, const char* tena
 
 // -----------------------------------------------------------------------------
 //
+// itemUnlink - take the item of subId out of the list; the caller holds the write lock
+//
+// The loop thread may be in the middle of a query or a send on it, a GET in the middle of rendering
+// it: a pinned item is parked, and freed by a later writer once unpinned.
+//
+static bool itemUnlink(LdPernotCache* cacheP, const char* subId)
+{
+  LdPernotItem* prev = NULL;
+
+  for (LdPernotItem* p = cacheP->head; p != NULL; p = p->next)
+  {
+    if (p->subId != NULL && strcmp(p->subId, subId) == 0)
+    {
+      if (prev == NULL) cacheP->head = p->next;
+      else              prev->next   = p->next;
+      if (cacheP->tail == p) cacheP->tail = prev;
+
+      if (__atomic_load_n(&p->refCount, __ATOMIC_SEQ_CST) == 0)
+        itemFree(p);
+      else
+      {
+        p->retired          = true;
+        p->next             = cacheP->retiredList;
+        cacheP->retiredList = p;
+      }
+
+      return true;
+    }
+    prev = p;
+  }
+
+  return false;
+}
+
+
+
+// -----------------------------------------------------------------------------
+//
 // ldPernotCacheItemAdd
 //
 LdPernotItem* ldPernotCacheItemAdd(LdPernotCache* cacheP, CorNode* subTree, void* tenantP, const char* tenantName)
@@ -428,9 +466,18 @@ LdPernotItem* ldPernotCacheItemAdd(LdPernotCache* cacheP, CorNode* subTree, void
   if (itemP == NULL)
     return NULL;
 
-  // Append - the item was built unlocked (nothing shared is touched above); the list is not
+  // Append - the item was built unlocked (nothing shared is touched above); the list is not.
+  //
+  // An item of the same id already there is REPLACED, in the same lock hold: a subscription is in
+  // the cache once. Two writers can add the same subscription - a broker that creates one, and its
+  // high-availability sync applying the change event of that very create - and whichever comes
+  // second must not add a second copy, which would notify twice. One walk of the list per add.
+  //
   pthread_rwlock_wrlock(&cacheP->lock);
   reapRetired(cacheP);
+
+  if (itemP->subId != NULL)
+    itemUnlink(cacheP, itemP->subId);
 
   if (cacheP->tail == NULL)
     cacheP->head = itemP;
@@ -462,39 +509,10 @@ bool ldPernotCacheItemRemove(LdPernotCache* cacheP, const char* subId)
 {
   if (cacheP == NULL || subId == NULL) return false;
 
-  bool          removed = false;
-  LdPernotItem* prev    = NULL;
-
   pthread_rwlock_wrlock(&cacheP->lock);
   reapRetired(cacheP);
 
-  for (LdPernotItem* p = cacheP->head; p != NULL; p = p->next)
-  {
-    if (p->subId != NULL && strcmp(p->subId, subId) == 0)
-    {
-      if (prev == NULL) cacheP->head = p->next;
-      else              prev->next   = p->next;
-      if (cacheP->tail == p) cacheP->tail = prev;
-
-      //
-      // The loop thread may be in the middle of a query or a send on it, a GET in the middle
-      // of rendering it: a pinned item is parked, and freed by a later writer once unpinned.
-      // It used to be freed here, whatever was using it.
-      //
-      if (__atomic_load_n(&p->refCount, __ATOMIC_SEQ_CST) == 0)
-        itemFree(p);
-      else
-      {
-        p->retired          = true;
-        p->next             = cacheP->retiredList;
-        cacheP->retiredList = p;
-      }
-
-      removed = true;
-      break;
-    }
-    prev = p;
-  }
+  bool removed = itemUnlink(cacheP, subId);
 
   pthread_rwlock_unlock(&cacheP->lock);
   return removed;
