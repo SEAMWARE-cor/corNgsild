@@ -744,6 +744,45 @@ void ldEntityMapSetQueryParams(LdEntityMap* mapP)
 
 // -----------------------------------------------------------------------------
 //
+// ldEntityMapQueryParamAdd - one parameter of the query that created the map, one that was not a URL parameter
+//
+// A query in a request BODY (POST /entityOperations/query, POST /temporal/entityMaps) has its parameters
+// parsed from the body: ldEntityMapSetQueryParams, reading the URL, sees none of them. A key the map
+// already has is left as it is (the URL's). Call it after ldEntityMapSetQueryParams.
+//
+void ldEntityMapQueryParamAdd(LdEntityMap* mapP, const char* key, const char* value)
+{
+  if ((mapP == NULL) || (key == NULL) || (value == NULL) || (ldEntityMapQueryParam(mapP, key) != NULL))
+    return;
+
+  char** pairV = (char**) realloc(mapP->queryParamV, 2 * (mapP->queryParamCount + 1) * sizeof(char*));
+
+  if (pairV == NULL)
+    return;
+
+  mapP->queryParamV = pairV;
+
+  char* k = strdup(key);
+  char* v = strdup(value);
+
+  if ((k == NULL) || (v == NULL))
+  {
+    free(k);
+    free(v);
+    return;
+  }
+
+  pairV[2 * mapP->queryParamCount]     = k;
+  pairV[2 * mapP->queryParamCount + 1] = v;
+  mapP->queryParamCount++;
+
+  mapBytesAdd(mapP, 2 * sizeof(char*) + strlen(key) + strlen(value) + 2 + 2 * MALLOC_OVERHEAD);
+}
+
+
+
+// -----------------------------------------------------------------------------
+//
 // ldEntityMapQueryParam - the value of a URL parameter of the creating request (NULL: it had none)
 //
 const char* ldEntityMapQueryParam(LdEntityMap* mapP, const char* key)

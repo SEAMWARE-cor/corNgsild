@@ -66,7 +66,8 @@ extern void ldPaginationSeekLinkHeader(uint64_t skipMask, const char* nextParam,
 // -----------------------------------------------------------------------------
 //
 // ldPaginationEntityMapLinkHeader - the Link header of a page served from an EntityMap: every link
-//                                   names the map (entityMap=<mapId>) and repeats the query (§ 9.6)
+//                                   names the map (entityMap=<mapId>) and repeats the query (§ 9.6); a temporal
+//                                   query's go to /temporal/entities
 //
 extern void ldPaginationEntityMapLinkHeader(LdEntityMap* mapP, int offset, int limit, int nextOffset, int total, bool hasMore);
 
