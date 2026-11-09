@@ -76,7 +76,8 @@ static bool slot0NeedsUri(const char* sp)
     (strncmp(sp, "/ngsi-ld/v1/subscriptions/",       26) == 0) ||
     (strncmp(sp, "/ngsi-ld/v1/csourceRegistrations/", 33) == 0) ||
     (strncmp(sp, "/ngsi-ld/v1/csourceSubscriptions/", 33) == 0) ||
-    (strncmp(sp, "/ngsi-ld/v1/entityMaps/",          23) == 0);
+    (strncmp(sp, "/ngsi-ld/v1/entityMaps/",          23) == 0) ||
+    (strncmp(sp, "/ngsi-ld/v1/snapshots/",           22) == 0);
 }
 
 
