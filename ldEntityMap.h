@@ -107,4 +107,7 @@ extern void ldEntityMapSetQueryParams(LdEntityMap* mapP);
 // ldEntityMapQueryParam - the value of a URL parameter of the request that created the map (NULL: none)
 extern const char* ldEntityMapQueryParam(LdEntityMap* mapP, const char* key);
 
+// ldEntityMapQueryParamAdd - a parameter of the creating query that was not in its URL (a body's), into the map
+extern void ldEntityMapQueryParamAdd(LdEntityMap* mapP, const char* key, const char* value);
+
 #endif  // CORNGSILD_LDENTITYMAP_OPS_H_

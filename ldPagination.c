@@ -397,7 +397,12 @@ void ldPaginationEntityMapLinkHeader(LdEntityMap* mapP, int offset, int limit, i
   if (mapP->boundGeometry    != NULL) linkParamAppend(&params, &pLen, &pSize, "geometry",    mapP->boundGeometry);
   if (mapP->boundCoordinates != NULL) linkParamAppend(&params, &pLen, &pSize, "coordinates", mapP->boundCoordinates);
 
-  const char* path      = "/ngsi-ld/v1/entities";
+  //
+  // A page of a temporal query is a page of Query Temporal: its links go to /temporal/entities (a POST
+  // /temporal/entityOperations/query's too - a link is a GET)
+  //
+  bool        temporal  = (corRest.in.urlPath != NULL) && (strncmp(corRest.in.urlPath, "/ngsi-ld/v1/temporal/", 21) == 0);
+  const char* path      = temporal ? "/ngsi-ld/v1/temporal/entities" : "/ngsi-ld/v1/entities";
   const char* mapId     = mapP->mapId;
   const char* mediaType = ldPaginationMediaType();
   int         bufSize   = 4 * (128 + strlen(path) + strlen(mapId) + pLen + strlen(mediaType));
