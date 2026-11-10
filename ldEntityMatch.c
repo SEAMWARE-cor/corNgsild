@@ -303,6 +303,24 @@ static bool attrIsRelationshipAt(CorNode* containerP, const char* attrName, int 
 
 
 
+// -----------------------------------------------------------------------------
+//
+// attrIsLanguagePropertyAt - is the addressed instance a LanguageProperty?
+//
+// The "[*]" of a q term (no natural language specified) is for a LanguageProperty only.
+//
+static bool attrIsLanguagePropertyAt(CorNode* containerP, const char* attrName, int ix)
+{
+  CorNode* instP = attrInstanceAt(containerP, attrName, ix);
+
+  if ((instP == NULL) || (instP->type != CorObject))
+    return false;
+
+  return (ldAttrTypeDetect(instP) == LdAttrLanguageProperty);
+}
+
+
+
 // qLeafCompare - compare a fully-resolved value node against a term's operator
 // (forward declaration; defined right after matchTerm).
 static bool qLeafCompare(LdQTerm* term, CorNode* valueP);
@@ -417,6 +435,14 @@ static bool matchTermOnInstance(CorNode* entityP, LdQTerm* term, int instIx)
     // "no element matches" semantics). A "*" segment is terminal.
     if (strcmp(term->valuePathV[i], "*") == 0)
     {
+      //
+      // "*" is for a LanguageProperty only (API call 2026-11-10: a rule outside the grammar). On anything
+      // else - a Property with a compound value, "*" deeper in the path - the path does not resolve: the
+      // same answer as a missing segment, a not-exists term TRUE, every other term FALSE.
+      //
+      if ((i != 0) || (attrIsLanguagePropertyAt(containerP, leafName, (containerP == entityP) ? instIx : 0) == false))
+        return (term->op == LdQNotExists);
+
       if (term->op == LdQExists)    return (valueP->value.head != NULL);
       if (term->op == LdQNotExists) return (valueP->value.head == NULL);
 
