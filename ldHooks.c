@@ -1701,6 +1701,10 @@ static void ldRenderHook(void)
 // Content-Length of a 204. The NGSI-LD API only: a HEAD on a broker's own endpoints (/version, ...) is
 // plain HTTP and answers what its GET does.
 //
+// A HEAD that CREATES keeps its 201 - the GET/HEAD of /entityMaps and /temporal/entityMaps makes an
+// EntityMap and answers 201 with the NGSILD-EntityMap header (ETSI NGSI-LD API call 2026-11-10: "just
+// like the GET"). Those are the only GETs answering 201.
+//
 static void ldHeadRenderHook(void)
 {
   ldRenderHook();
@@ -1710,7 +1714,7 @@ static void ldHeadRenderHook(void)
 
   int status = corRest.out.httpStatusCode;
 
-  if ((corRest.out.problemType == NULL) && ((status == 200) || (status == 201) || (status == 203)))
+  if ((corRest.out.problemType == NULL) && ((status == 200) || (status == 203)))
     corRest.out.httpStatusCode = 204;
 }
 
