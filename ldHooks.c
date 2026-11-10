@@ -411,6 +411,69 @@ static bool simplifiedBodyDeclared(void)
 //
 // ldParseHook - validate @context and expand incoming JSON-LD payload
 //
+// -----------------------------------------------------------------------------
+//
+// batchPreErrorAdd - an entity of a batch's body refused before the batch runs: { entityId, error } into
+// corNgsild.batchPreErrors, which the batch handler folds into its errors[] (a 207)
+//
+static void batchPreErrorAdd(CorNode* elemP, const char* type, const char* title, const char* detail)
+{
+  if (corNgsild.batchPreErrors == NULL)
+    corNgsild.batchPreErrors = corTreeArray(corRest.kallocP, NULL);
+
+  const char* eid = "";
+  CorNode*    idP = corTreeLookup(elemP, "id");
+  if (idP != NULL && idP->type == CorString)
+    eid = idP->value.s;
+
+  CorNode* entry  = corTreeObject(corRest.kallocP, NULL);
+  CorNode* errObj = corTreeObject(corRest.kallocP, "error");
+
+  corTreeChildAdd(entry, corTreeString(corRest.kallocP, "entityId", eid));
+  corTreeChildAdd(errObj, corTreeString(corRest.kallocP, "type", type));
+  corTreeChildAdd(errObj, corTreeString(corRest.kallocP, "title", title));
+  corTreeChildAdd(errObj, corTreeString(corRest.kallocP, "detail", detail));
+  corTreeChildAdd(entry, errObj);
+  corTreeChildAdd(corNgsild.batchPreErrors, entry);
+}
+
+
+
+// -----------------------------------------------------------------------------
+//
+// batchContextRule - § 6.2.4 on each entity of a batch's entity array: under application/ld+json (ldJson) an
+// entity without @context, under application/json one with an @context, is that entity's BadRequestData -
+// taken out of the body, into the batch's errors[]; the others are processed
+//
+static void batchContextRule(bool ldJson)
+{
+  CorNode* prevP = NULL;
+  CorNode* elemP = corRest.in.requestTree->value.head;
+
+  while (elemP != NULL)
+  {
+    CorNode* nextP  = elemP->next;
+    bool     hasCtx = (elemP->type == CorObject) && (corTreeLookup(elemP, "@context") != NULL);
+
+    if ((elemP->type == CorObject) && (hasCtx != ldJson))
+    {
+      if (ldJson)
+        batchPreErrorAdd(elemP, LD_ERROR_BAD_REQUEST_DATA, "Missing @context",
+                         "an entity of an application/ld+json batch must carry an @context member");
+      else
+        batchPreErrorAdd(elemP, LD_ERROR_BAD_REQUEST_DATA, "Unexpected @context",
+                         "@context in an entity of the body not allowed for Content-Type application/json");
+      corTreeNodeDecouple(corRest.in.requestTree, elemP, prevP);
+    }
+    else
+      prevP = elemP;
+
+    elemP = nextP;
+  }
+}
+
+
+
 static void ldParseHook(void)
 {
   //
@@ -510,20 +573,21 @@ static void ldParseHook(void)
       return;
   }
 
-  // § 6.2.4 — @context vs Content-Type rules. These are request-level
-  // preconditions evaluated during @context RESOLUTION, before any entity is
-  // interpreted, so a violation is a single 400 — NOT a per-entity 207, which
-  // § 7.7/7.8/7.9/7.10 reserve for create/update failures discovered AFTER
-  // resolution succeeds. The error granularity matches the @context-resolution
-  // granularity (request-level Link header / per-request body).
+  // § 6.2.4 — @context vs Content-Type rules (TS 104-176):
   //
   //   application/ld+json : @context is carried in the body. A json-ld#context
-  //                         Link header contradicts that → 400. A single object
-  //                         must carry @context; an entity-array body must carry
-  //                         it on EVERY element.
+  //                         Link header contradicts that → 400 (the request's own
+  //                         headers). A single object must carry @context → 400.
   //   application/json    : @context is carried in the Link header. @context in
-  //                         the body is forbidden — on a single object, or on
-  //                         ANY element of an entity-array body → 400.
+  //                         a single-object body → 400.
+  //
+  // In an entity-array body (batch create/upsert/update/merge) each entity is a
+  // JSON-LD document with its own @context (TS 104-175 § 10.3.2.3): an entity
+  // that breaks the rule - no @context under application/ld+json, one under
+  // application/json - is that entity's BadRequestData, in the batch's errors[]
+  // (a 207), and the others are processed. The ETSI NGSI-LD API call of
+  // 2026-11-10 decided it so: a partial error in a batch is a 207, not a 400
+  // (ETSI suite 003_06_01, 003_08_01). Was a 400 for the whole request.
   //
   // An "entity-array body" (batch create/upsert/update/merge) is flagged per
   // service via options.features.entityArrayBody. Batch delete (id strings) and
@@ -548,20 +612,7 @@ static void ldParseHook(void)
     }
 
     if (isArrayBody && isEntityArrayOp)
-    {
-      for (CorNode* elemP = corRest.in.requestTree->value.head; elemP != NULL; elemP = elemP->next)
-      {
-        if (elemP->type != CorObject)
-          continue;
-        if (corTreeLookup(elemP, "@context") == NULL)
-        {
-          ldError(400, LD_ERROR_BAD_REQUEST_DATA, "Missing @context",
-                  "every entity of an application/ld+json array body must carry an @context member");
-          corNgsild.contextError = true;
-          return;
-        }
-      }
-    }
+      batchContextRule(true);
     else if (!isArrayBody && atCtx == NULL)
     {
       ldError(400, LD_ERROR_BAD_REQUEST_DATA, "Missing @context",
@@ -573,20 +624,7 @@ static void ldParseHook(void)
   else  // application/json — @context must NOT appear in the body
   {
     if (isArrayBody && isEntityArrayOp)
-    {
-      for (CorNode* elemP = corRest.in.requestTree->value.head; elemP != NULL; elemP = elemP->next)
-      {
-        if (elemP->type != CorObject)
-          continue;
-        if (corTreeLookup(elemP, "@context") != NULL)
-        {
-          ldError(400, LD_ERROR_BAD_REQUEST_DATA, "Unexpected @context",
-                  "@context in body not allowed for Content-Type application/json");
-          corNgsild.contextError = true;
-          return;
-        }
-      }
-    }
+      batchContextRule(false);
     else if (!isArrayBody && atCtx != NULL)
     {
       ldError(400, LD_ERROR_BAD_REQUEST_DATA, "Unexpected @context",
@@ -843,24 +881,9 @@ static void ldParseHook(void)
         }
         if (badUrl != NULL)
         {
-          if (corNgsild.batchPreErrors == NULL)
-            corNgsild.batchPreErrors = corTreeArray(corRest.kallocP, NULL);
-
-          const char* eid = "";
-          CorNode* idP = corTreeLookup(elemP, "id");
-          if (idP != NULL && idP->type == CorString) eid = idP->value.s;
-
-          CorNode* entry = corTreeObject(corRest.kallocP, NULL);
-          corTreeChildAdd(entry, corTreeString(corRest.kallocP, "entityId", eid));
-          CorNode* errObj = corTreeObject(corRest.kallocP, "error");
-          corTreeChildAdd(errObj, corTreeString(corRest.kallocP, "type", LD_ERROR_LD_CONTEXT_NOT_AVAILABLE));
-          corTreeChildAdd(errObj, corTreeString(corRest.kallocP, "title", "Context Not Available"));
           char detail[512];
           snprintf(detail, sizeof(detail), "unable to retrieve @context from '%s'", badUrl);
-          corTreeChildAdd(errObj, corTreeString(corRest.kallocP, "detail", detail));
-          corTreeChildAdd(entry, errObj);
-          corTreeChildAdd(corNgsild.batchPreErrors, entry);
-
+          batchPreErrorAdd(elemP, LD_ERROR_LD_CONTEXT_NOT_AVAILABLE, "Context Not Available", detail);
           corTreeNodeDecouple(corRest.in.requestTree, elemP, prev);
         }
         else
