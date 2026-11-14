@@ -407,16 +407,13 @@ static void csourceNotificationPost(LdSubCacheItem* subItemP, CorNode* notificat
     if (ok)
     {
       subItemP->lastSuccess = corRest.requestStartTime;
-      if (subItemP->status == LdSubStatusFailed)
-        subItemP->status = LdSubStatusActive;
     }
     else
     {
-      COR_W("CSR-sub '%s': notification to %s FAILED - timesFailed now %d, status -> failed",
+      COR_W("CSR-sub '%s': notification to %s FAILED - timesFailed now %d",
             subItemP->subId, subItemP->endpointUri, subItemP->timesFailed + 1);
       subItemP->timesFailed++;
       subItemP->lastFailure = corRest.requestStartTime;
-      subItemP->status      = LdSubStatusFailed;
     }
 
     ldNotifyStatsHookInvoke(true /*csrSub*/, ok);
@@ -451,9 +448,6 @@ static void csourceNotificationPost(LdSubCacheItem* subItemP, CorNode* notificat
     COR_T(LdTCsrNotify, "CSR-sub '%s': notification delivered to %s (%d)",
           subItemP->subId, subItemP->endpointUri, resp.statusCode);
     subItemP->lastSuccess = corRest.requestStartTime;
-    // A later successful delivery clears a previous failure state
-    if (subItemP->status == LdSubStatusFailed)
-      subItemP->status = LdSubStatusActive;
   }
   else
   {
@@ -464,13 +458,15 @@ static void csourceNotificationPost(LdSubCacheItem* subItemP, CorNode* notificat
     // that was never delivered and a notification that was never sent look
     // identical from the outside - this is the line that tells them apart.
     //
-    COR_W("CSR-sub '%s': notification to %s FAILED (%d) - timesFailed now %d, status -> failed",
+    COR_W("CSR-sub '%s': notification to %s FAILED (%d) - timesFailed now %d",
           subItemP->subId, subItemP->endpointUri, resp.statusCode, subItemP->timesFailed + 1);
     subItemP->timesFailed++;
+    //
+    // TS 104 175 § 12.4.7 says "Update the subscription status to 'failed'", but the Subscription's status
+    // (§ 5.2.6.5.2) is active, paused or expired only: the failure is notification.status (§ 5.2.6.7.3, as in
+    // § 10.5.7), which lastFailure being later than lastSuccess makes "failed" (ldSubscriptionCountersInject)
+    //
     subItemP->lastFailure = corRest.requestStartTime;
-    // § 12.4.7: "If the notification is not sent successfully ...
-    // Update the subscription status to 'failed'"
-    subItemP->status = LdSubStatusFailed;
   }
 
   corRestClientResponseCleanup(&resp);

@@ -15,7 +15,7 @@
 
 // -----------------------------------------------------------------------------
 //
-// ldSubStatusFromString - unknown/NULL maps to active (the § 5.2.12 default)
+// ldSubStatusFromString - unknown/NULL maps to active (the default, TS 104 175 § 5.2.6.5.2)
 //
 LdSubStatus ldSubStatusFromString(const char* s)
 {
@@ -23,7 +23,6 @@ LdSubStatus ldSubStatusFromString(const char* s)
   if (strcmp(s, "active")  == 0)   return LdSubStatusActive;
   if (strcmp(s, "paused")  == 0)   return LdSubStatusPaused;
   if (strcmp(s, "expired") == 0)   return LdSubStatusExpired;
-  if (strcmp(s, "failed")  == 0)   return LdSubStatusFailed;
 
   return LdSubStatusActive;
 }
@@ -41,7 +40,6 @@ const char* ldSubStatusToString(LdSubStatus status)
     case LdSubStatusActive:   return "active";
     case LdSubStatusPaused:   return "paused";
     case LdSubStatusExpired:  return "expired";
-    case LdSubStatusFailed:   return "failed";
   }
 
   return "active";

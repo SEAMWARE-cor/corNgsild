@@ -12,9 +12,9 @@
 
 // -----------------------------------------------------------------------------
 //
-// LdSubStatus - subscription lifecycle status (§ 5.2.12)
+// LdSubStatus - subscription lifecycle status (TS 104 175 § 5.2.6.5.2)
 //
-// The wire form is a string ("active"/"paused"/"expired"/"failed"); the
+// The wire form is a string ("active"/"paused"/"expired"); the
 // cache keeps the enum so status checks in the notification hot paths are
 // integer compares, not strcmps.
 //
@@ -22,8 +22,7 @@ typedef enum LdSubStatus
 {
   LdSubStatusActive = 0,
   LdSubStatusPaused,
-  LdSubStatusExpired,
-  LdSubStatusFailed
+  LdSubStatusExpired
 } LdSubStatus;
 
 extern LdSubStatus  ldSubStatusFromString(const char* s);
