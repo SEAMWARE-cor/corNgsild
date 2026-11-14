@@ -76,7 +76,9 @@ typedef struct LdQValue
     // list values" - puts no requirement on the values sharing a type, so
     // `q=a==1,"two"` is a legal list of two different kinds of Value.
     //
-    struct { char** values; int count; LdQValueType* itemTypeV; } list;
+    // quotedTimeV: per item, a QUOTED DateTime (an LdQString item) - as LdQTerm::quotedTime; NULL when none is
+    //
+    struct { char** values; int count; LdQValueType* itemTypeV; bool* quotedTimeV; } list;
   };
 } LdQValue;
 
@@ -108,6 +110,15 @@ typedef struct LdQTerm
   LdQOperator   op;
   LdQValueType  valueType;
   LdQValue      value;
+  //
+  // A QUOTED DateTime (valueType LdQString, value.s its text): q=observedAt>="2021-01-01T00:00:00Z". TS 104-175
+  // § 7.2.3 is unclear on quotes (its grammar has a bare dateTime; a ValueList holds quoted strings only), so
+  // coraine takes both forms: against a target that is a time (an integer - observedAt, createdAt, modifiedAt,
+  // a DateTime value) it compares as the unquoted one, by time (quotedNs); against a string, as a string.
+  // Comparison operators only - never ~= / !~=.
+  //
+  bool          quotedTime;
+  long long     quotedNs;
 } LdQTerm;
 
 
