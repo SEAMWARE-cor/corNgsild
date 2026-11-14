@@ -439,7 +439,8 @@ static bool parseValueList(const char* raw, int rawLen, LdQTerm* term, CorAlloc*
   const char* p  = raw;
   const char* end = raw + rawLen;
 
-  LdQValueType* itemTypeV = (LdQValueType*) corAlloc(kaP, count * sizeof(LdQValueType));
+  LdQValueType* itemTypeV   = (LdQValueType*) corAlloc(kaP, count * sizeof(LdQValueType));
+  bool*         quotedTimeV = NULL;   // allocated at the first quoted DateTime
 
   while (p < end && ix < count)
   {
@@ -464,7 +465,25 @@ static bool parseValueList(const char* raw, int rawLen, LdQTerm* term, CorAlloc*
       if (p < end)
         p++;  // skip closing quote
 
-      itemTypeV[ix] = LdQString;   // quoted: a string, whatever it looks like
+      itemTypeV[ix] = LdQString;   // quoted: a string - and a time too when it is a full DateTime (quotedTimeV)
+
+      if ((itemLen > 10) && (itemStart[10] == 'T'))
+      {
+        char text[64];
+
+        if (itemLen < (int) sizeof(text))
+        {
+          memcpy(text, itemStart, itemLen);
+          text[itemLen] = 0;
+
+          if (looksLikeDateTime(text))
+          {
+            if (quotedTimeV == NULL)
+              quotedTimeV = (bool*) corAlloc(kaP, count * sizeof(bool));
+            quotedTimeV[ix] = true;
+          }
+        }
+      }
     }
     else
     {
@@ -514,6 +533,7 @@ static bool parseValueList(const char* raw, int rawLen, LdQTerm* term, CorAlloc*
   term->value.list.values      = values;
   term->value.list.count       = ix;
   term->value.list.itemTypeV   = itemTypeV;
+  term->value.list.quotedTimeV = quotedTimeV;
 
   return true;
 }
@@ -844,6 +864,16 @@ static LdQNode* parseTerm(const char** pp, CorAlloc* kaP, QParseMode mode)
 
     nodeP->term.valueType = LdQString;
     nodeP->term.value.s   = s;
+
+    //
+    // A quoted DateTime: a string, and a time too - LdQTerm::quotedTime. A full DateTime only (a 'T' after the
+    // date): a Date or a Time is compared as a string, quoted or not.
+    //
+    if ((nodeP->term.op != LdQPattern) && (nodeP->term.op != LdQNotPattern) && (sLen > 10) && (s[10] == 'T') && looksLikeDateTime(s))
+    {
+      nodeP->term.quotedTime = true;
+      nodeP->term.quotedNs   = (long long) ldIsoToNanoseconds(s);
+    }
   }
   else if (strncmp(p, "true", 4) == 0 && (p[4] == 0 || p[4] == ';' || p[4] == '|' || p[4] == ')' || p[4] == '}'))
   {

@@ -344,11 +344,12 @@ static bool matchTermOnInstance(CorNode* entityP, LdQTerm* term, int instIx)
     CorNode* tsP = corTreeLookup(entityP, term->attr);
     if (term->op == LdQExists)    return (tsP != NULL);
     if (term->op == LdQNotExists) return (tsP == NULL);
-    if (tsP == NULL || tsP->type != CorInt || term->valueType != LdQDateTime)
+    bool asTime = (term->valueType == LdQDateTime) || (term->quotedTime == true);   // a quoted DateTime too
+    if (tsP == NULL || tsP->type != CorInt || asTime == false)
       return false;
 
     long long e = tsP->value.i;
-    long long q = term->value.ns;
+    long long q = (term->valueType == LdQDateTime) ? term->value.ns : term->quotedNs;
     switch (term->op)
     {
     case LdQEqual:     return e == q;
@@ -543,6 +544,19 @@ static bool qLeafCompare(LdQTerm* term, CorNode* valueP)
   // Hence every type-guard below answers `term->op == LdQUnequal` rather than
   // plain false: only != survives a mismatch.
   //
+  // A quoted DateTime (LdQTerm::quotedTime) against a time - stored as an integer: compared as the unquoted
+  // DateTime is. Against anything else it stays the string it is.
+  //
+  if ((term->quotedTime == true) && (valueP->type == CorInt))
+  {
+    LdQTerm asTime = *term;
+
+    asTime.valueType  = LdQDateTime;
+    asTime.value.ns   = term->quotedNs;
+    asTime.quotedTime = false;
+    return qLeafCompare(&asTime, valueP);
+  }
+
   switch (term->valueType)
   {
   case LdQNumber:
@@ -838,6 +852,12 @@ static bool qLeafCompare(LdQTerm* term, CorNode* valueP)
       }
       else if ((itemType == LdQDateTime) && (valueP->type == CorInt))
       {
+        if ((long long) valueP->value.i == (long long) ldIsoToNanoseconds(term->value.list.values[i]))
+          return (term->op == LdQEqual);
+      }
+      else if ((itemType == LdQString) && (valueP->type == CorInt) && (term->value.list.quotedTimeV != NULL) && term->value.list.quotedTimeV[i])
+      {
+        // a quoted DateTime against a time: as the unquoted one
         if ((long long) valueP->value.i == (long long) ldIsoToNanoseconds(term->value.list.values[i]))
           return (term->op == LdQEqual);
       }
