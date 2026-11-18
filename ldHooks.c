@@ -20,6 +20,7 @@
 #include "corRest/corRest.h"                             // corRest
 #include "corRest/CorRestService.h"                      // CorRestService.ldOp
 #include "corJsonld/corLdInit.h"                         // corLdCoreContext
+#include "corJsonld/corLdCoreLookup.h"                   // corLdCoreLookup
 #include "corJsonld/corLdExpandTree.h"                       // corLdExpandTree, corLdExpandEntityTree
 #include "corJsonld/corLdCompactTree.h"                      // corLdCompactTree, corLdCompactTreeWith
 #include "corJsonld/corLdDownload.h"                         // corLdContextFromUrl
@@ -290,7 +291,32 @@ static CorNode* ldFindEmbeddedAtContext(CorNode* nodeP)
 // pruning (an all-missing-@context batch must still yield a 207, not a false
 // "empty array"). The duplicate-member check always applies.
 //
-static bool checkRawInputTree(CorNode* nodeP, bool checkEmpty)
+// -----------------------------------------------------------------------------
+//
+// jsonTypedCoreTerm - is this member a core term typed @json? Its value is JSON, verbatim - an empty
+// object there is a value like any other ("executionInput": {} - a service without input)
+//
+static bool jsonTypedCoreTerm(const char* name)
+{
+  CorLdItem* itemP = corLdCoreLookup(name);
+
+  return (itemP != NULL) && (itemP->type != NULL) && (strcmp(itemP->type, "@json") == 0);
+}
+
+
+
+//
+// rawInputProblem - checkRawInputTree's walk, quiet: RAW_OK, or what is wrong (*dupNameP: the duplicate member)
+//
+// A member whose subtree is wrong is looked at once more - only then, the walk is the hot path of every
+// write: a core term typed @json (jsonTypedCoreTerm) holds JSON, verbatim, and is taken as it is.
+//
+#define RAW_OK            0
+#define RAW_EMPTY_OBJECT  1
+#define RAW_EMPTY_ARRAY   2
+#define RAW_DUPLICATE     3
+
+static int rawInputProblem(CorNode* nodeP, bool checkEmpty, const char** dupNameP)
 {
   if (checkEmpty && (nodeP->type == CorObject || nodeP->type == CorArray))
   {
@@ -304,11 +330,7 @@ static bool checkRawInputTree(CorNode* nodeP, bool checkEmpty)
       break;
     }
     if (empty)
-    {
-      const char* what = (nodeP->type == CorArray) ? "array" : "object";
-      ldError(400, LD_ERROR_BAD_REQUEST_DATA, "Empty Structure", "an empty %s is not valid NGSI-LD input", what);
-      return false;
-    }
+      return (nodeP->type == CorArray) ? RAW_EMPTY_ARRAY : RAW_EMPTY_OBJECT;
   }
 
   if (nodeP->type == CorObject)
@@ -319,9 +341,8 @@ static bool checkRawInputTree(CorNode* nodeP, bool checkEmpty)
       {
         if ((aP->name != NULL) && (bP->name != NULL) && (strcmp(aP->name, bP->name) == 0))
         {
-          ldError(400, LD_ERROR_BAD_REQUEST_DATA, "Duplicate Member",
-                  "Duplicate member '%s' in a JSON object", aP->name);
-          return false;
+          *dupNameP = aP->name;
+          return RAW_DUPLICATE;
         }
       }
     }
@@ -331,18 +352,42 @@ static bool checkRawInputTree(CorNode* nodeP, bool checkEmpty)
       if ((cP->name != NULL) && ((ldTermId(cP) == CorTermJson) || (strcmp(cP->name, "@context") == 0)))
         continue;  // opaque JSON literal / JSON-LD context — not NGSI-LD structure
 
-      if (checkRawInputTree(cP, checkEmpty) == false)
-        return false;
+      int problem = rawInputProblem(cP, checkEmpty, dupNameP);
+
+      if ((problem != RAW_OK) && (cP->name != NULL) && (jsonTypedCoreTerm(cP->name) == true))
+        continue;  // a core term typed @json (Service Execution's executionInput, ...) - JSON, not NGSI-LD
+
+      if (problem != RAW_OK)
+        return problem;
     }
   }
   else if (nodeP->type == CorArray)
   {
     for (CorNode* cP = nodeP->value.head; cP != NULL; cP = cP->next)
-      if (checkRawInputTree(cP, checkEmpty) == false)
-        return false;
+    {
+      int problem = rawInputProblem(cP, checkEmpty, dupNameP);
+
+      if (problem != RAW_OK)
+        return problem;
+    }
   }
 
-  return true;
+  return RAW_OK;
+}
+
+
+
+static bool checkRawInputTree(CorNode* nodeP, bool checkEmpty)
+{
+  const char* dupName = NULL;
+  int         problem = rawInputProblem(nodeP, checkEmpty, &dupName);
+
+  if ((problem == RAW_EMPTY_OBJECT) || (problem == RAW_EMPTY_ARRAY))
+    ldError(400, LD_ERROR_BAD_REQUEST_DATA, "Empty Structure", "an empty %s is not valid NGSI-LD input", (problem == RAW_EMPTY_ARRAY) ? "array" : "object");
+  else if (problem == RAW_DUPLICATE)
+    ldError(400, LD_ERROR_BAD_REQUEST_DATA, "Duplicate Member", "Duplicate member '%s' in a JSON object", dupName);
+
+  return (problem == RAW_OK);
 }
 
 
