@@ -1427,6 +1427,23 @@ static void ldRenderHook(void)
       }
     }
 
+    //
+    // The two simplified temporal representations read each instance's
+    // ?timeproperty - and modifiedAt / createdAt ARE sysAttrs. Stripped before
+    // they run, timeproperty=modifiedAt found no timestamp in any instance and
+    // answered with empty aggregations / empty value lists, unless ?sysAttrs was
+    // also given. For those two the strip waits until they have run.
+    //
+    // Every other response loses its sysAttrs HERE, before ldEntityToApi: it turns
+    // every createdAt/modifiedAt into an ISO string (corTimeIso + an allocation)
+    // and stripping them after threw those away - two per entity and two per
+    // attribute, 7 % of a query of five-attribute entities (perf, 2026-11-19).
+    //
+    bool temporalSimplified = (corNgsild.format == LdFormatTemporalValues) || (corNgsild.format == LdFormatAggregatedValues);
+
+    if ((corNgsild.sysAttrs == false) && !temporalSimplified)
+      ldStripSysAttrs(treeP);
+
     // Convert storage format to API format
     if (treeP != NULL && treeP->type == CorArray)
     {
@@ -1437,18 +1454,6 @@ static void ldRenderHook(void)
     {
       ldEntityToApi(treeP, &corRest.kalloc);
     }
-
-    //
-    // The two simplified temporal representations read each instance's
-    // ?timeproperty - and modifiedAt / createdAt ARE sysAttrs. Stripped here,
-    // timeproperty=modifiedAt found no timestamp in any instance and answered
-    // with empty aggregations / empty value lists, unless ?sysAttrs was also
-    // given. For those two the strip waits until they have run.
-    //
-    bool temporalSimplified = (corNgsild.format == LdFormatTemporalValues) || (corNgsild.format == LdFormatAggregatedValues);
-
-    if ((corNgsild.sysAttrs == false) && !temporalSimplified)
-      ldStripSysAttrs(corRest.out.responseTree);
 
     // Apply lang reduction BEFORE format simplification — the simplification
     // strips the LanguageProperty wrapper, leaving the languageMap dict.
