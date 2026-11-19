@@ -4,7 +4,7 @@ The NGSI-LD engine of the coraine context broker: payload validation, the
 normalized/concise/simplified format conversions, the query/scope/geo expression
 languages, the subscription & registration caches, entity merge/replace logic, and
 the distributed-operation (context-source) machinery. It sits on top of
-[`corRest`](https://github.com/SEAMWARE/corRest) (transport) and [`corJsonld`](https://github.com/SEAMWARE/corJsonld) (context handling)
+[`corRest`](https://github.com/SEAMWARE-cor/corRest) (transport) and [`corJsonld`](https://github.com/SEAMWARE-cor/corJsonld) (context handling)
 and targets **ETSI GS CIM 009 (NGSI-LD)**.
 
 - **Version:** post-0.2.0
@@ -105,16 +105,16 @@ make di         # debug + install
 
 Sibling Cor-Lib repos:
 
-- [`corRest`](https://github.com/SEAMWARE/corRest) — REST server + HTTP client (transport)
-- [`corJsonld`](https://github.com/SEAMWARE/corJsonld) — JSON-LD context expansion / compaction (it brings
-  [`corHash`](https://github.com/SEAMWARE/corHash), which corNgsild does not call itself)
+- [`corRest`](https://github.com/SEAMWARE-cor/corRest) — REST server + HTTP client (transport)
+- [`corJsonld`](https://github.com/SEAMWARE-cor/corJsonld) — JSON-LD context expansion / compaction (it brings
+  [`corHash`](https://github.com/SEAMWARE-cor/corHash), which corNgsild does not call itself)
 
 Sibling repos:
 
-- [`corAlloc`](https://github.com/SEAMWARE/corAlloc) — arena allocator (`CorAlloc`)
-- [`corTree`](https://github.com/SEAMWARE/corTree) — the tree (`CorNode`)
-- [`corJson`](https://github.com/SEAMWARE/corJson) — JSON parsing and rendering
-- [`corBase`](https://github.com/SEAMWARE/corBase) — core utilities and the library log (`COR_LIB_*`)
-- [`corLog`](https://github.com/SEAMWARE/corLog) — logging and trace levels
+- [`corAlloc`](https://github.com/SEAMWARE-cor/corAlloc) — arena allocator (`CorAlloc`)
+- [`corTree`](https://github.com/SEAMWARE-cor/corTree) — the tree (`CorNode`)
+- [`corJson`](https://github.com/SEAMWARE-cor/corJson) — JSON parsing and rendering
+- [`corBase`](https://github.com/SEAMWARE-cor/corBase) — core utilities and the library log (`COR_LIB_*`)
+- [`corLog`](https://github.com/SEAMWARE-cor/corLog) — logging and trace levels
 
 Plus `pthread`.
