@@ -795,6 +795,23 @@ int ldDistOpSendReceiveEx(LdRegCacheItem*  csr,
 
 // -----------------------------------------------------------------------------
 //
+// distOpLinkSent - did buildHeaders put a json-ld#context Link on the forward?
+//
+static bool distOpLinkSent(CorRestKeyValue* hv, int hc)
+{
+  for (int h = 0; h < hc; h++)
+  {
+    if ((hv[h].key != NULL) && (strcasecmp(hv[h].key, "Link") == 0) && (hv[h].value != NULL) && (strstr(hv[h].value, "json-ld#context") != NULL))
+      return true;
+  }
+
+  return false;
+}
+
+
+
+// -----------------------------------------------------------------------------
+//
 // responseContextLink - extract the json-ld#context Link URL from a response.
 //
 // A forwarded read body is expanded via the context that travels WITH it; for
@@ -1229,7 +1246,10 @@ int ldDistOpSendMultiMax(LdDistOpBatchItem*     itemV,
     CorRestVerb itemVerb = itemV[i].hasVerb ? itemV[i].verb : verb;
 
     int             hc = 0;
-    CorRestKeyValue* hv = buildHeaders(itemVerb, ownAlias, csr->tenant, csr->contextSourceInfoKV, ldDistOpForwardContext(csr), &hc);
+    CorLdContext*   fwdCtxP = ldDistOpForwardContext(csr);
+    CorRestKeyValue* hv = buildHeaders(itemVerb, ownAlias, csr->tenant, csr->contextSourceInfoKV, fwdCtxP, &hc);
+
+    resultV[i].requestContextP = distOpLinkSent(hv, hc) ? fwdCtxP : NULL;
 
     distOpTraceRequest(itemVerb, itemV[i].url, hv, hc, itemV[i].body, itemV[i].bodyLen);
 

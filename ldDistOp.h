@@ -202,6 +202,12 @@ typedef struct LdDistOpBatchResult
   // A forwarded read body MUST be expanded via its own context, not the
   // client's request context nor the outgoing forward context.
   const char*  responseContextUrl;
+  // The @context the forward was SENT in (its json-ld#context Link) - NULL when no Link was sent
+  // (application/ld+json: the @context is in the body). A source that answers with no context of
+  // its own (no Link, no @context in the body) answers in the terms it was asked in, so a caller
+  // expands such an answer with this context, not core (§ 9.5.2: a jsonldContext source is plain
+  // JSON and never sends one).
+  CorLdContext* requestContextP;
   // true when statusCode 0 was caused by the broker's own per-CSR timeout
   // (CORR_ERR_TIMEOUT), NOT a connection failure. § 6.3.5: a single exclusive/
   // redirect source that fails to respond in time → 504 (vs 502 for any other
