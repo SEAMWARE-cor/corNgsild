@@ -17,6 +17,7 @@
 #include "corAlloc/CorAlloc.h"                         // corAlloc
 #include "corAlloc/corAlloc.h"                         // corAlloc
 #include "corBase/corUriPasswordMask.h"                // corUriPasswordMask
+#include "corBase/corLanguageTagWellFormed.h"          // corLanguageTagWellFormed
 #include "corAlloc/corAllocStrdup.h"                   // corAllocStrdup
 #include "corNgsild/ldRegexValid.h"                   // ldRegexValid
 #include "corNgsild/LdProj.h"                              // LdProjItem, ldProjectionParse, ldProjectionTopLevelNames
@@ -1030,6 +1031,15 @@ void ldParamHook(const char* name, const char* value)
   }
   else if (strcmp(name, "collation") == 0)
   {
+    //
+    // TS 104 175 § 7.6.2.3: an ICU collation as RFC 6067 gives it - a BCP 47 language tag. ICU's ucol_open accepts
+    // anything (U_USING_DEFAULT_WARNING), so the shape is checked here (§ 10.4.3.4: BadRequestData)
+    //
+    if (corLanguageTagWellFormed(value) == false)
+    {
+      ldError(400, LD_ERROR_BAD_REQUEST_DATA, "Invalid collation", "'collation' must be a BCP 47 language tag (RFC 6067), got '%s'", value);
+      return;
+    }
     corNgsild.collation = (char*) value;
   }
 }
