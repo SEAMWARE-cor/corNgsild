@@ -1329,7 +1329,7 @@ bool ldAcceptPrecondition(void)
   if (acceptType == CorMimeNone ||
       (acceptType == CorMimeGeoJson && !entityReadOp))
   {
-    ldError(406, LD_ERROR_INVALID_REQUEST, "Not Acceptable",
+    ldError(406, LD_ERROR_INVALID_REQUEST, "No acceptable media type",
             "supported response media types: application/json, application/ld+json%s",
             entityReadOp ? ", application/geo+json" : "");
     return false;

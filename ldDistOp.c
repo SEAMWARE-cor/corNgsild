@@ -1623,7 +1623,7 @@ int ldBatchErrorsSingleStatus(CorNode* errorsArrayP)
 // non-batch op would return.
 //
 // The clone takes type/title from the first error.error block; the detail
-// stays generic ("Not Found" alone is clear enough). entityId(s) are
+// stays generic ("Entity not found" alone is clear enough). entityId(s) are
 // echoed back as an extension field — `entityId` (string) if a single entry,
 // `entityIds` (array) if more — so the client knows WHICH entity(ies)
 // caused the failure without parsing the multi-status envelope.
@@ -1804,7 +1804,7 @@ int ldDistOpEntriesBuild(const LdDistOpGroup  groupV[],
                    "%s registration does not support %s",
                    grp->modeTag, opName);
           ldDistOpBatchErrorAdd(errorsArrayP, entityIdForErrors, 409,
-                                LD_ERROR_CONFLICT, "Conflict", detail, csr->regId);
+                                LD_ERROR_CONFLICT, "Operation not supported by the registration", detail, csr->regId);
         }
         continue;
       }
