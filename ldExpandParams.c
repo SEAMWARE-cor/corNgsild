@@ -171,6 +171,13 @@ void ldExpandParams(CorAlloc* kaP)
   {
     for (int i = 0; i < corNgsild.orderByCount; i++)
     {
+      //
+      // Expanded already: a POST query's body runs ldExpandParams a second time (ldQueryBody), and the joined
+      // attrName - expanded IRIs, dots inside - must not be split on '.' again
+      //
+      if (corNgsild.orderByV[i].pathSegV != NULL)
+        continue;
+
       char* in = corNgsild.orderByV[i].attrName;
       if (in == NULL)
       {

@@ -45,6 +45,7 @@
 // -----------------------------------------------------------------------------
 //
 bool        ldSplitEntities      = true;
+bool        ldOrderDistributed   = false;
 bool        ldDistributed        = false;   // --distributed / -dist (opt-in, like TRoE)
 
 //
@@ -1025,6 +1026,8 @@ void ldParamHook(const char* name, const char* value)
       terms[ix].byDistance = byDistance;
       terms[ix].valuePathV = valuePathV;
       terms[ix].valuePathN = valuePathN;
+      terms[ix].pathSegV   = NULL;     // set by ldExpandParams - non-NULL = expanded already
+      terms[ix].pathSegN   = 0;
       ix++;
     }
 
