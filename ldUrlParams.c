@@ -45,6 +45,7 @@
 // -----------------------------------------------------------------------------
 //
 bool        ldSplitEntities      = true;
+bool        ldOrderDistributed   = false;
 bool        ldDistributed        = false;   // --distributed / -dist (opt-in, like TRoE)
 
 //

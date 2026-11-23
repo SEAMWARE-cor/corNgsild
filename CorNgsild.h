@@ -413,6 +413,16 @@ extern bool ldSplitEntities;
 
 // -----------------------------------------------------------------------------
 //
+// ldOrderDistributed - global flag, default FALSE (TS 104 175 § 10.4.3.4 / § 11.3.3.4: orderBy outside the local
+// scope is BadRequestData). Set to true via --orderDistributed: orderBy without local=true is accepted and the
+// broker orders the merged results of its Context Sources.
+//
+extern bool ldOrderDistributed;
+
+
+
+// -----------------------------------------------------------------------------
+//
 // ldDistributed - global flag, default FALSE. Set via --distributed / -dist.
 //
 // Distributed operations cost a registration-cache lookup on EVERY entity

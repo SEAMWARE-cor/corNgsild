@@ -12,6 +12,7 @@
 
 #include "corRest/corRest.h"                               // corRest
 #include "corRest/CorRestService.h"                        // CorRestService.ldOp
+#include "corRest/corRestInHeader.h"                        // corRestInHeader
 #include "corNgsild/CorNgsild.h"                           // corNgsild
 #include "corNgsild/LdOp.h"                               // LdOpQueryEntities, LdOpQueryTemporal, LdOpBatchQuery
 #include "corNgsild/ldParams.h"                           // LD_PARAM_GEOREL, LD_PARAM_GEOMETRY, ...
@@ -234,6 +235,24 @@ bool ldParamsValidate(void)
     return true;
   }
 
+  //
+  // § 10.4.3.4 (Query Entities) and § 11.3.3.4 (Query Temporal Evolution of Entities): "If the ordering
+  // parameter is present and the execution of the operation is not limited to the local scope (see clause
+  // 8.6) then an error of type BadRequestData shall be raised" - an order over distributed results is not
+  // one the broker can keep while paging. GET and POST alike: orderBy and local are URL parameters of both.
+  // --orderDistributed (ldOrderDistributed) lifts it: the broker orders the merged results of its sources.
+  // A read of a Snapshot (NGSILD-Snapshot) is limited to the local scope by nature: it forwards nothing.
+  //
+  uint64_t op = (corRest.serviceP != NULL) ? corRest.serviceP->ldOp : 0;
+  if ((op & (LdOpQueryEntities | LdOpBatchQuery | LdOpQueryTemporal)) &&
+      (corNgsild.orderByCount > 0) && (corNgsild.local == false) && (ldOrderDistributed == false) &&
+      (corRestInHeader("NGSILD-Snapshot") == NULL))
+  {
+    ldError(400, LD_ERROR_BAD_REQUEST_DATA, "Ordering outside the local scope",
+            "'orderBy' needs 'local=true' (§ 10.4.3.4, § 11.3.3.4) - or a broker started with --orderDistributed");
+    return true;
+  }
+
   // § 10.4.3.4 (Query Entities) and § 10.5.5.4 (Query Temporal Evolution of
   // Entities) — at least ONE of a CLOSED list shall be provided, or the
   // request is 400 BadRequestData, "too wide query":
@@ -271,7 +290,6 @@ bool ldParamsValidate(void)
   // the body, which the parse hook can't translate to corNgsild fields
   // — that happens in the service routine, after this validate hook.
   // Without the verb gate, body-based queries would falsely 400 here.
-  uint64_t op = (corRest.serviceP != NULL) ? corRest.serviceP->ldOp : 0;
   if ((op & (LdOpQueryEntities | LdOpQueryTemporal)) &&
       corRest.in.verb == CorVerbGet &&
       corNgsild.entityMapId == NULL)
