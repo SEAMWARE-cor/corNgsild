@@ -585,6 +585,8 @@ void ldParamHook(const char* name, const char* value)
     // request may carry both q and csf, and they filter different things.
     corNgsild.csf     = (char*) value;
     corNgsild.csfExpr = ldQParse(value, faP);
+    if ((corNgsild.csfExpr == NULL) && (corRest.out.httpStatusCode >= 400))   // the parser's errors name q - this is csf
+      corRest.out.problemTitle = "Invalid csf parameter";
   }
   else if (strcmp(name, "local") == 0)
   {
