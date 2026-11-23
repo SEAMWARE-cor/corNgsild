@@ -188,7 +188,19 @@ bool ldParamsValidate(void)
   // the DB layer (mongo's 2dsphere is strict about edge crossings).
   if (corNgsild.geometry != NULL && corNgsild.coordinates != NULL)
   {
-    if (!ldCheckGeoQuery(corNgsild.geometry, corNgsild.coordinates))
+    if (!ldCheckGeoQuery(corNgsild.geometry, corNgsild.coordinates, "coordinates"))
+      return true;
+  }
+
+  //
+  // § 7.6.2: orderFrom holds the coordinates of the reference geometry of a distance order, as RFC 7946
+  // § 3.1.2 mandates, for the geometry orderGeometry names (Point when absent) - the same check as a
+  // geo-query's coordinates. A position given for a LineString, a single number for a Point, a value
+  // that is not JSON: 400 BadRequestData (§ 10.4.3.4).
+  //
+  if (corNgsild.orderFrom != NULL)
+  {
+    if (!ldCheckGeoQuery((corNgsild.orderGeometry != NULL) ? corNgsild.orderGeometry : "Point", corNgsild.orderFrom, "orderFrom"))
       return true;
   }
 

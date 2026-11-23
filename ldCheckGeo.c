@@ -440,7 +440,9 @@ bool ldCheckGeo(CorNode* geoValueP)
 //
 // ldCheckGeoQuery -
 //
-bool ldCheckGeoQuery(const char* geometry, const char* coordinates)
+// paramName: the parameter the coordinates came in ("coordinates", "orderFrom"), named by the error.
+//
+bool ldCheckGeoQuery(const char* geometry, const char* coordinates, const char* paramName)
 {
   if (geometry == NULL || coordinates == NULL)
     return true;  // nothing to check; caller's earlier validation handles missing pair
@@ -461,8 +463,7 @@ bool ldCheckGeoQuery(const char* geometry, const char* coordinates)
   free(dup);
   if (coordsP == NULL)
   {
-    ldError(400, LD_ERROR_BAD_REQUEST_DATA, "Invalid geo-query",
-            "coordinates must be a valid JSON array");
+    ldError(400, LD_ERROR_BAD_REQUEST_DATA, "Invalid geo-query", "%s must be a valid JSON array", paramName);
     return false;
   }
 

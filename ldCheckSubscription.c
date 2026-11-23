@@ -827,7 +827,7 @@ static bool checkGeoQ(CorNode* geoQP, bool complete, CorAlloc* kaP)
   if (coordsStr == NULL)
     return true;  // could not materialize coordinates; nothing further to check
 
-  if (ldCheckGeoQuery(geometryP->value.s, coordsStr) == false)
+  if (ldCheckGeoQuery(geometryP->value.s, coordsStr, "coordinates") == false)
     return false;  // ldError already set by ldCheckGeoQuery
 
   //
