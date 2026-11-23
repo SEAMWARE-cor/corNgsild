@@ -38,8 +38,11 @@ extern bool ldCheckGeo(CorNode* geoValueP);
 // closure, self-intersection, ...). On failure ldError is already
 // set; the caller short-circuits its own pipeline.
 //
+// `paramName`   : the parameter the coordinates came in ("coordinates", or
+//                 "orderFrom" for a distance order - § 7.6.2), named by the error
+//
 // Returns true on success, false on validation failure.
 //
-extern bool ldCheckGeoQuery(const char* geometry, const char* coordinates);
+extern bool ldCheckGeoQuery(const char* geometry, const char* coordinates, const char* paramName);
 
 #endif  // CORNGSILD_LDCHECKGEO_H_

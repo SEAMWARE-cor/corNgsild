@@ -834,8 +834,8 @@ void ldParamHook(const char* name, const char* value)
   }
   else if (strcmp(name, "orderGeometry") == 0)
   {
-    // Reference geometry type for sort-by-distance (default Point). Only Point is
-    // supported for now — a non-Point reference is refused later with 501.
+    // Reference geometry type for sort-by-distance (default Point) - § 7.6.2: any geometry but a
+    // GeometryCollection. Its coordinates (orderFrom) are checked against it in ldParamsValidate.
     if (strcmp(value, "Point")           != 0 && strcmp(value, "MultiPoint")      != 0 &&
         strcmp(value, "LineString")      != 0 && strcmp(value, "MultiLineString") != 0 &&
         strcmp(value, "Polygon")         != 0 && strcmp(value, "MultiPolygon")    != 0)
