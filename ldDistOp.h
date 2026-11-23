@@ -185,6 +185,8 @@ typedef struct LdDistOpBatchItem
   int              bodyLen;
   bool             hasVerb;  // per-item verb override (mixed-verb batches —
   CorRestVerb       verb;     // e.g. queryEntity GET next to queryBatch POST)
+  const char*      entityMap; // sent as the NGSILD-EntityMap request header: the source's own EntityMap, linked to
+                              // the one in use (TS 104-175 § 10.4.2.4); NULL for none. Last: callers zero the item
 } LdDistOpBatchItem;
 
 typedef struct LdDistOpBatchResult
@@ -222,6 +224,9 @@ typedef struct LdDistOpBatchResult
   // false when the response carried none (or not a number). After tooLarge, for the reason given there.
   bool         resultsCountGiven;
   int64_t      resultsCount;
+  // The source's NGSILD-EntityMap response header - the EntityMap it used (TS 104-176 clause 7), NULL when none.
+  // Last, for the reason given at tooLarge.
+  const char*  entityMap;
 } LdDistOpBatchResult;
 
 extern int ldDistOpSendMulti(LdDistOpBatchItem*     itemV,

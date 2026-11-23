@@ -287,6 +287,16 @@ bool ldQueryBodyToParams(CorNode* bodyP)
       continue;
     }
 
+    //
+    // createEntityMap (§ 5.2.6.5.1): the URL parameter entityMap of a GET query. false asks for nothing
+    //
+    if (strcmp(fP->name, "createEntityMap") == 0)
+    {
+      if ((fP->type == CorBoolean) && (fP->value.b == true))
+        ldParamHook("entityMap", "true");
+      continue;
+    }
+
     if (fP->type == CorBoolean)
     {
       ldParamHook(fP->name, fP->value.b ? "true" : "false");

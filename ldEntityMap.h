@@ -52,6 +52,12 @@ extern void ldEntityMapAddLinkedMap(LdEntityMap* mapP, const char* csrId, const 
 // (returns NULL when not present)
 extern const char* ldEntityMapLinkedMapLookup(LdEntityMap* mapP, const char* csrId);
 
+// ldEntityMapLinkedMapSet - the EntityMap a CSR used, into the linked maps of a map in use (§ 10.4.2.4)
+extern void ldEntityMapLinkedMapSet(LdEntityMapStore* storeP, LdEntityMap* mapP, const char* csrId, const char* remoteMapId);
+
+// ldEntityMapEntryLookup - the map's entry for an entity, NULL when the map does not hold it
+extern LdEntityMapEntry* ldEntityMapEntryLookup(LdEntityMap* mapP, const char* entityId);
+
 // ldEntityMapLookup - find a map by ID
 extern LdEntityMap* ldEntityMapLookup(LdEntityMapStore* storeP, const char* mapId);
 

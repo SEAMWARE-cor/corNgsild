@@ -24,6 +24,7 @@
 #include "corJson/corJsonRenderSize.h"                 // corJsonFastRenderSize
 
 #include "corAlloc/corAlloc.h"                         // corAlloc
+#include "corAlloc/corAllocStrdup.h"                   // corAllocStrdup
 #include "corBase/corHeaderIsCredential.h"             // corHeaderIsCredential
 #include "corBase/corUriPasswordMask.h"                // corUriPasswordMask
 #include "corLog/corLog.h"                             // COR_T, COR_W
@@ -881,6 +882,26 @@ static void responseResultsCount(LdDistOpBatchResult* rP, CorRestKeyValue* heade
 
 // -----------------------------------------------------------------------------
 //
+// responseEntityMap - the NGSILD-EntityMap header of a response (the EntityMap the source used), into the result
+//
+static void responseEntityMap(LdDistOpBatchResult* rP, CorRestKeyValue* headerV, int headerCount)
+{
+  rP->entityMap = NULL;
+
+  for (int h = 0; h < headerCount; h++)
+  {
+    if ((headerV[h].key != NULL) && (headerV[h].value != NULL) && (strcasecmp(headerV[h].key, "NGSILD-EntityMap") == 0))
+    {
+      rP->entityMap = corAllocStrdup(&corRest.kalloc, headerV[h].value);
+      return;
+    }
+  }
+}
+
+
+
+// -----------------------------------------------------------------------------
+//
 // distOpBodyParse - parse a forwarded response body once, at reception
 //
 // The parsed tree is cached on the result so no consumer re-parses it (corJsonParse
@@ -1077,6 +1098,7 @@ static void distOpPluginResult(LdDistOpBatchItem* itemP, CorRestVerb verb, int s
 
   rP->responseContextUrl = responseContextLink(respP->headerV, respP->headerCount);
   responseResultsCount(rP, respP->headerV, respP->headerCount);
+  responseEntityMap(rP, respP->headerV, respP->headerCount);
 
   if ((respP->statusCode >= 200) && (respP->statusCode < 300))
     csr->lastSuccess = nowNs;
@@ -1249,6 +1271,18 @@ int ldDistOpSendMultiMax(LdDistOpBatchItem*     itemV,
     CorLdContext*   fwdCtxP = ldDistOpForwardContext(csr);
     CorRestKeyValue* hv = buildHeaders(itemVerb, ownAlias, csr->tenant, csr->contextSourceInfoKV, fwdCtxP, &hc);
 
+    if (itemV[i].entityMap != NULL)   // the source's own EntityMap - every transport takes these headers
+    {
+      CorRestKeyValue* withMap = (CorRestKeyValue*) corAlloc(&corRest.kalloc, (hc + 1) * sizeof(CorRestKeyValue));
+
+      memcpy(withMap, hv, hc * sizeof(CorRestKeyValue));
+      withMap[hc].key   = (char*) "NGSILD-EntityMap";
+      withMap[hc].value = (char*) itemV[i].entityMap;
+      withMap[hc].bit   = 0;
+      hv = withMap;
+      hc++;
+    }
+
     resultV[i].requestContextP = distOpLinkSent(hv, hc) ? fwdCtxP : NULL;
 
     distOpTraceRequest(itemVerb, itemV[i].url, hv, hc, itemV[i].body, itemV[i].bodyLen);
@@ -1350,6 +1384,7 @@ int ldDistOpSendMultiMax(LdDistOpBatchItem*     itemV,
       distOpBodyParse(&resultV[i]);
       resultV[i].responseContextUrl = responseContextLink(respHdrV, respHdrCount);
       responseResultsCount(&resultV[i], respHdrV, respHdrCount);
+      responseEntityMap(&resultV[i], respHdrV, respHdrCount);
       distOpTooLarge(&resultV[i], maxResponseBytes, csr);
       if (resultV[i].tooLarge)
         continue;
@@ -1460,6 +1495,7 @@ int ldDistOpSendMultiMax(LdDistOpBatchItem*     itemV,
     // caller can expand the body via its own vocabulary, not the request's.
     resultV[i].responseContextUrl = responseContextLink(resp->headerV, resp->headerCount);
     responseResultsCount(&resultV[i], resp->headerV, resp->headerCount);
+    responseEntityMap(&resultV[i], resp->headerV, resp->headerCount);
 
     if (resp->statusCode >= 200 && resp->statusCode < 300)
       csr->lastSuccess = nowNs;

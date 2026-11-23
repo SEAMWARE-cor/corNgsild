@@ -42,6 +42,7 @@ CorRestParam ldParamRegistryV[] =
   { "scopeQ",                LD_PARAM_SCOPE_Q },
   { "format",                LD_PARAM_FORMAT },
   { "entityMap",             LD_PARAM_ENTITY_MAP },
+  { "entityMapLifetime",     LD_PARAM_ENTITY_MAP_LIFETIME },
   { "local",                 LD_PARAM_LOCAL },
   { "noForward",             LD_PARAM_NO_FORWARD },
   { "hops",                  LD_PARAM_HOPS },

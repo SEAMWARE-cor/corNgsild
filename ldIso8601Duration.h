@@ -9,7 +9,7 @@
 // Copyright 2026 Seamware
 // SPDX-License-Identifier: Apache-2.0
 //
-// ISO 8601 duration parser — used for snapshotLifetime (§ 5.2.41).
+// ISO 8601 duration parser — used for snapshotLifetime (§ 5.2.41) and entityMapLifetime (TS 104-176 table 7.2.3.1-1).
 //
 // Form: P[nY][nM][nD][T[nH][nM][nS]] where each n is a non-negative
 // integer or fixed-point decimal. The spec calls for xsd:duration but

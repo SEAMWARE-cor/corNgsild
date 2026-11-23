@@ -190,6 +190,7 @@ typedef struct CorNgsild
   bool    entityMapAuto;      // the map is the broker's own: a query paginated past its first page (200, not 201)
   bool    entityMapAutoOff;   // the broker's own map did not fit in the maps' memory: this request pages without one
   char*   entityMapId;        // non-NULL if ?entityMap=<mapId> or the NGSILD-EntityMap request header (page from existing)
+  int64_t entityMapLifetimeNs; // ?entityMapLifetime= (ISO 8601 duration) in nanoseconds; 0 = absent (the broker's default)
   bool    splitEntitiesSet;   // true if ?splitEntities= was present in URL
   bool    splitEntitiesVal;   // value of ?splitEntities= (only valid if splitEntitiesSet)
 
