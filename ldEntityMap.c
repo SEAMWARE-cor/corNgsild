@@ -742,7 +742,7 @@ bool ldEntityMapRequestHeader(void)
 
     if ((corNgsild.entityMapId != NULL) && (strcmp(corNgsild.entityMapId, mapId) != 0))
     {
-      ldError(400, LD_ERROR_BAD_REQUEST_DATA, "Bad Request",
+      ldError(400, LD_ERROR_BAD_REQUEST_DATA, "Two different EntityMaps",
               "the NGSILD-EntityMap header names EntityMap '%s', the URL parameter 'entityMap' names '%s'",
               mapId, corNgsild.entityMapId);
       return false;
