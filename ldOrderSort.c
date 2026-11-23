@@ -11,12 +11,13 @@
 // { "@none": { type, value, ... } }.
 //
 #include <stdlib.h>                                    // qsort
-#include <string.h>                                    // strcmp, strcasecmp
+#include <string.h>                                    // strcmp
 
 #ifdef COR_WITH_ICU
 #include <unicode/ucol.h>                              // UCollator, ucol_open, ucol_strcollUTF8
 #endif
 
+#include "corBase/corCollate.h"                        // CorCollation, corCollationParse, corCollate
 #include "corTree/CorNode.h"                           // CorNode, CorObject, CorArray
 #include "corTree/corTreeLookup.h"                     // corTreeLookup
 
@@ -28,6 +29,7 @@
 // Thread-local context for qsort comparator (no qsort_r on all platforms)
 static __thread LdOrderTerm* sortTerms;
 static __thread int          sortTermCount;
+static __thread CorCollation sortCollation;            // the collation= of this sort, as corCollate reads it
 
 #ifdef COR_WITH_ICU
 // Per-sort ICU collator, opened once in ldOrderSort and read by the comparator
@@ -41,14 +43,10 @@ static __thread UCollator*   sortCollatorP;
 //
 // strCollate - compare two UTF-8 strings for orderBy string ordering (§ 7.6.2.1)
 //
-// § 7.6.2.1 mandates ICU "root" collation as the default (a "reasonable
-// language-agnostic" order, case-insensitive at the primary level). An ICU
-// build uses the opened collator (root, or the requested collation= locale);
-// any other build falls back to a dependency-free approximation: compare
-// case-insensitively, and for otherwise-equal strings order lowercase before
-// uppercase (matching ICU root's tertiary preference), so e.g.
-// apple < Apple < banana < Banana < cherry — never the raw-byte order where
-// every uppercase initial sorts ahead of every lowercase one.
+// § 7.6.2.1: the default is ICU's "root" collation, a "reasonable language-agnostic" order, and collation= selects
+// another. corCollate (corBase) is that order without ICU: root for the letters of ASCII, Latin-1 and Latin
+// Extended-A, the sv and de-u-co-phonebk tailorings and the -u-kn numeric key - what the ETSI test suite asks for.
+// A build with ICU (make COR_WITH_ICU=1) uses ICU's collator instead, for every locale ICU knows.
 //
 static int strCollate(const char* a, const char* b)
 {
@@ -59,14 +57,11 @@ static int strCollate(const char* a, const char* b)
     UCollationResult  r  = ucol_strcollUTF8(sortCollatorP, a, -1, b, -1, &ec);
     if (U_SUCCESS(ec))
       return (r == UCOL_LESS) ? -1 : (r == UCOL_GREATER) ? 1 : 0;
-    // ec failure (e.g. malformed UTF-8) — fall through to the ASCII approximation
+    // ec failure (e.g. malformed UTF-8) - fall through to corCollate
   }
 #endif
 
-  int c = strcasecmp(a, b);
-  if (c != 0)
-    return c;
-  return -strcmp(a, b);   // equal ignoring case → lowercase before uppercase
+  return corCollate(a, b, &sortCollation);
 }
 
 
@@ -399,17 +394,17 @@ void ldOrderSort(CorNode* arrayP, LdOrderTerm* terms, int termCount, const char*
   sortTerms     = terms;
   sortTermCount = termCount;
 
+  corCollationParse(collation, &sortCollation);
+
 #ifdef COR_WITH_ICU
   // Open one collator for the whole sort: the requested collation= locale, or
   // "" for the § 7.6.2.1 root order. ICU falls back to root for an unknown tag
   // (best-effort), so an unsupported collation is never an error. On failure
-  // sortCollatorP stays NULL and strCollate uses the ASCII approximation.
+  // sortCollatorP stays NULL and strCollate uses corCollate.
   UErrorCode ec = U_ZERO_ERROR;
   sortCollatorP = ucol_open((collation != NULL) ? collation : "", &ec);
   if (U_FAILURE(ec))
     sortCollatorP = NULL;
-#else
-  (void) collation;
 #endif
 
   qsort(ptrV, count, sizeof(CorNode*), entityCompare);
