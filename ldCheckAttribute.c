@@ -9,9 +9,9 @@
 //
 #include <stdbool.h>                                     // bool
 #include <string.h>                                      // strcmp
-#include <ctype.h>                                       // isalpha, isalnum
 
 #include "corBase/corLibLog.h"                         // COR_LIB_*
+#include "corBase/corLanguageTagWellFormed.h"          // corLanguageTagWellFormed
 #include "corAlloc/CorAlloc.h"                         // CorAlloc
 #include "corRest/corRest.h"                            // corRest
 #include "corTree/corTreeBuilder.h"                    // corTreeChildRemove
@@ -175,56 +175,6 @@ static bool isValueKey(CorNode* nodeP)
 
 // -----------------------------------------------------------------------------
 //
-// languageTagWellFormed - is `tag` a well-formed IETF RFC 5646 language tag?
-//
-// § 5.2.6.4.6: a languageMap key "shall be a JSON string representing an IETF RFC
-// 5646 language code, or the JSON-LD @none". This checks SHAPE, not registration -
-// "zz" and "qqq-ZZ" are well-formed and accepted even though no such language is
-// registered. Validating against the IANA registry would need the registry itself,
-// and would reject tags that become valid when it is next updated.
-//
-//   primary subtag  2-8 ALPHA          en, deu, klingon
-//   further subtags 1-8 ALPHANUM each  en-US, zh-Hans-CN, de-CH-1901
-//   singletons      x-... / i-...      private-use and grandfathered forms
-//
-static bool languageTagWellFormed(const char* tag)
-{
-  int i = 0;
-
-  // Private-use (x-) and grandfathered (i-) tags start with a one-letter singleton.
-  if (((tag[0] == 'x') || (tag[0] == 'X') || (tag[0] == 'i') || (tag[0] == 'I')) && (tag[1] == '-'))
-    i = 1;
-  else
-  {
-    while (isalpha((unsigned char) tag[i]))
-      i++;
-    if ((i < 2) || (i > 8))                                 // primary subtag length
-      return false;
-    if (tag[i] == 0)
-      return true;
-  }
-
-  // Remaining subtags: '-' followed by 1-8 alphanumerics, repeated.
-  while (tag[i] == '-')
-  {
-    int len = 0;
-    i++;
-    while (isalnum((unsigned char) tag[i]))
-    {
-      i++;
-      len++;
-    }
-    if ((len < 1) || (len > 8))
-      return false;
-  }
-
-  return (tag[i] == 0);
-}
-
-
-
-// -----------------------------------------------------------------------------
-//
 // checkLanguageMap - validate a languageMap value (object with string values)
 //
 static bool checkLanguageMap(CorNode* lmP)
@@ -252,7 +202,7 @@ static bool checkLanguageMap(CorNode* lmP)
       return false;
     }
 
-    if ((strcmp(tag, "@none") != 0) && (!languageTagWellFormed(tag)))
+    if ((strcmp(tag, "@none") != 0) && (!corLanguageTagWellFormed(tag)))
     {
       ldError(400, LD_ERROR_BAD_REQUEST_DATA, "Invalid LanguageProperty",
               "'languageMap' key is not an RFC 5646 language tag: '%s'", tag);
