@@ -27,6 +27,7 @@
 #include "corNgsild/LdGeoRel.h"                           // ldGeoRelParse
 #include "corNgsild/ldQueryBody.h"                        // ldQueryBodyToParams
 #include "corNgsild/ldNameList.h"                        // ldNameListCheck
+#include "corNgsild/ldTermId.h"                          // ldNodeRename
 #include "corNgsild/ldQueryBodyCheck.h"                      // Own interface
 
 
@@ -74,6 +75,51 @@ static const char* typeTitle(int typeMask)
 
 // -----------------------------------------------------------------------------
 //
+// defaultVocabMember - the name after the default vocabulary's IRI, or NULL when the name is not in it
+//
+static const char* defaultVocabMember(const char* name)
+{
+  static const char prefix[] = "https://uri.etsi.org/ngsi-ld/default-context/";
+
+  if (strncmp(name, prefix, sizeof(prefix) - 1) != 0)
+    return NULL;
+
+  return &name[sizeof(prefix) - 1];
+}
+
+
+
+// -----------------------------------------------------------------------------
+//
+// temporalQMembersName - a TemporalQuery's members (TS 104-175 § 5.2.6.7.4) named by their names
+//
+// firstN and offsetN came after the v1.9 core context: expanded with it, they are in the default
+// vocabulary (see defaultVocabMember)
+//
+static void temporalQMembersName(CorNode* temporalQP)
+{
+  static const char* memberV[] = { "timerel", "timeAt", "endTimeAt", "timeproperty", "lastN", "firstN", "offsetN",
+                                   "aggrMethods", "aggrPeriodDuration", NULL };
+
+  for (CorNode* nodeP = temporalQP->value.head; nodeP != NULL; nodeP = nodeP->next)
+  {
+    const char* member = (nodeP->name != NULL) ? defaultVocabMember(nodeP->name) : NULL;
+
+    for (int ix = 0; (member != NULL) && (memberV[ix] != NULL); ix++)
+    {
+      if (strcmp(memberV[ix], member) == 0)
+      {
+        ldNodeRename(nodeP, memberV[ix]);
+        break;
+      }
+    }
+  }
+}
+
+
+
+// -----------------------------------------------------------------------------
+//
 // ldFieldsExtract - generic first-level validation of an object's members
 //
 // Detects: unknown field, duplicated field, wrong JSON type, empty array/object,
@@ -95,6 +141,26 @@ static bool ldFieldsExtract(CorNode* objP, LdField* fieldV, int fields, bool err
       {
         fP = &fieldV[ix];
         break;
+      }
+    }
+
+    //
+    // A member the request's @context has no term for came out of the expansion in the default
+    // vocabulary - createEntityMap with the v1.9 core context, which predates it. The members of these
+    // objects are fixed names, the data type's: the name is the member, whatever the vocabulary
+    //
+    if (fP == NULL)
+    {
+      const char* member = defaultVocabMember(nodeP->name);
+
+      for (int ix = 0; (member != NULL) && (ix < fields); ix++)
+      {
+        if (strcmp(fieldV[ix].name, member) == 0)
+        {
+          ldNodeRename(nodeP, fieldV[ix].name);
+          fP = &fieldV[ix];
+          break;
+        }
       }
     }
 
@@ -408,6 +474,10 @@ bool ldQueryBodyCheck(void)
   }
 
   CorNode* temporalQP   = findField(fieldV, fields, "temporalQ");
+
+  if (temporalQP != NULL)
+    temporalQMembersName(temporalQP);
+
   CorNode* aggrMethodsP = (temporalQP != NULL) ? corTreeLookup(temporalQP, "aggrMethods") : NULL;
 
   if ((aggrMethodsP != NULL) && (ldNameListCheck(aggrMethodsP, "Invalid field for query", "temporalQ.aggrMethods") == false))

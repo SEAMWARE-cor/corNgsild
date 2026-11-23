@@ -28,7 +28,8 @@
 #include "corNgsild/ldCheckDateTime.h"                    // ldCheckDateTime, ldIsoToNanoseconds
 #include "corNgsild/ldTypes.h"                            // ldFormatFromString
 #include "corNgsild/ldQueryParams.h"                      // ldParamSplit
-#include "corNgsild/ldCheckUri.h"                         // ldCheckUri
+#include "corNgsild/ldCheckUri.h"                         // ldCheckUri, ldUriValid
+#include "corNgsild/ldIso8601Duration.h"                  // ldIso8601DurationParseNs
 #include "corNgsild/ldQParse.h"                           // ldQParse
 #include "corNgsild/LdProblem.h"                          // LD_ERROR_BAD_REQUEST_DATA, LD_ERROR_INVALID_REQUEST, LD_ERROR_LD_CONTEXT_NOT_AVAILABLE
 #include "corNgsild/ldError.h"                            // ldError
@@ -637,10 +638,37 @@ void ldParamHook(const char* name, const char* value)
   }
   else if (strcmp(name, "entityMap") == 0)
   {
-    if (value != NULL && strcmp(value, "true") == 0)
+    //
+    // A Boolean (TS 104-176 table 7.2.3.1-1). Not NGSI-LD: the id of an existing EntityMap, as the
+    // links of a map's pages carry it - an EntityMap id is a URI (TS 104-175 table 5.2.6.5.5-1), so
+    // anything else is neither and is refused, not taken as the id of a map that is not there
+    //
+    if ((value != NULL) && (strcmp(value, "true") == 0))
       corNgsild.entityMapCreate = true;
-    else if (value != NULL && value[0] != 0 && strcmp(value, "false") != 0)
-      corNgsild.entityMapId = (char*) value;   // URI of existing map
+    else if ((value != NULL) && (strcmp(value, "false") == 0))
+      ;
+    else if ((value != NULL) && (ldUriValid(value) == true))
+      corNgsild.entityMapId = (char*) value;
+    else
+    {
+      ldError(400, LD_ERROR_BAD_REQUEST_DATA, "Invalid request",
+              "'entityMap' must be 'true', 'false' or the id of an EntityMap; got '%s'", (value != NULL) ? value : "");
+      return;
+    }
+  }
+  else if (strcmp(name, "entityMapLifetime") == 0)
+  {
+    // An ISO 8601 duration (TS 104-176 table 7.2.3.1-1) - used only by a map ?entityMap=true makes
+    int64_t ns = (value != NULL) ? ldIso8601DurationParseNs(value) : -1;
+
+    if (ns < 0)
+    {
+      ldError(400, LD_ERROR_BAD_REQUEST_DATA, "Invalid request",
+              "'entityMapLifetime' must be an ISO 8601 duration; got '%s'", (value != NULL) ? value : "");
+      return;
+    }
+
+    corNgsild.entityMapLifetimeNs = ns;
   }
   else if (strcmp(name, "splitEntities") == 0)
   {

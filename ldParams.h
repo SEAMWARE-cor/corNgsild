@@ -76,6 +76,7 @@
 #define LD_PARAM_ORDER_GEOMETRY        (1ULL << 53)  // § 7.6.2.2 — sort-by-distance reference geometry type
 #define LD_PARAM_GOAL                  (1ULL << 54)  // not NGSI-LD - a DDS goal's id: ?goal=X is ?datasetId=urn:goal:X
 #define LD_PARAM_LANG_PROPERTIES       (1ULL << 55)  // not NGSI-LD - attributes that are LanguageProperties: a q [..] under them is a language tag, not a term (spec-doubts #134)
+#define LD_PARAM_ENTITY_MAP_LIFETIME   (1ULL << 56)  // TS 104-176 table 7.2.3.1-1 - suggested lifetime of the EntityMap ?entityMap=true makes
 
 
 
@@ -104,6 +105,7 @@
   | LD_PARAM_SCOPE_Q     \
   | LD_PARAM_FORMAT      \
   | LD_PARAM_ENTITY_MAP  \
+  | LD_PARAM_ENTITY_MAP_LIFETIME \
   | LD_PARAM_LOCAL       \
   | LD_PARAM_VIA         \
   | LD_PARAM_SYSATTRS       \
@@ -142,6 +144,8 @@
   | LD_PARAM_JOIN                \
   | LD_PARAM_JOIN_LEVEL          \
   | LD_PARAM_CONTAINED_BY        \
+  | LD_PARAM_ENTITY_MAP          \
+  | LD_PARAM_ENTITY_MAP_LIFETIME \
   )
 
 #define LD_PARAMS_POST_ENTITIES  ( LD_PARAM_LOCAL )
@@ -252,6 +256,8 @@
   | LD_PARAM_FORMAT      \
   | LD_PARAM_LANG        \
   | LD_PARAM_LOCAL       \
+  | LD_PARAM_ENTITY_MAP  \
+  | LD_PARAM_ENTITY_MAP_LIFETIME \
   )
 #define LD_PARAMS_PATCH_ENTITY_ATTR      ( LD_PARAM_TYPE | LD_PARAM_LOCAL | LD_PARAM_OBSERVED_AT )
 #define LD_PARAMS_PUT_ENTITY_ATTR        ( LD_PARAM_TYPE | LD_PARAM_LOCAL )

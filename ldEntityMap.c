@@ -272,13 +272,62 @@ void ldEntityMapAddEntry(LdEntityMap* mapP, const char* entityId,
 
 
 // ldEntityMapLinkedMapLookup
+//
+// The LAST link of the CSR: a map in use gets a newer one appended (ldEntityMapLinkedMapSet), the older
+// one stays where a request reading it may be
+//
 const char* ldEntityMapLinkedMapLookup(LdEntityMap* mapP, const char* csrId)
 {
+  const char* remoteMapId = NULL;
+
   if (mapP == NULL || csrId == NULL) return NULL;
-  for (LdEntityMapLink* p = mapP->linkedHead; p != NULL; p = p->next)
+
+  for (LdEntityMapLink* p = mapP->linkedHead; p != NULL; p = __atomic_load_n(&p->next, __ATOMIC_ACQUIRE))
     if (p->csrId != NULL && strcmp(p->csrId, csrId) == 0)
-      return p->remoteMapId;
-  return NULL;
+      remoteMapId = p->remoteMapId;
+
+  return remoteMapId;
+}
+
+
+
+// -----------------------------------------------------------------------------
+//
+// ldEntityMapLinkedMapSet - the EntityMap a CSR used, into the linked maps of a map IN USE (TS 104-175 § 10.4.2.4)
+//
+// Other requests may be reading the map: nothing is changed in place, nothing freed. A CSR's new map is
+// a link appended to the list (the last link of a CSR is its map - ldEntityMapLinkedMapLookup), under the
+// store's lock against another writer; the link is complete before a reader can reach it.
+//
+void ldEntityMapLinkedMapSet(LdEntityMapStore* storeP, LdEntityMap* mapP, const char* csrId, const char* remoteMapId)
+{
+  if ((storeP == NULL) || (mapP == NULL) || (csrId == NULL) || (remoteMapId == NULL))
+    return;
+
+  pthread_rwlock_wrlock(&storeP->lock);
+
+  const char* current = ldEntityMapLinkedMapLookup(mapP, csrId);
+
+  if ((current == NULL) || (strcmp(current, remoteMapId) != 0))
+  {
+    LdEntityMapLink* linkP = (LdEntityMapLink*) calloc(1, sizeof(LdEntityMapLink));
+
+    if (linkP != NULL)
+    {
+      linkP->csrId       = strdup(csrId);
+      linkP->remoteMapId = strdup(remoteMapId);
+
+      mapBytesAdd(mapP, sizeof(LdEntityMapLink) + strlen(csrId) + strlen(remoteMapId) + 2 + 3 * MALLOC_OVERHEAD);
+
+      if (mapP->linkedTail == NULL)
+        __atomic_store_n(&mapP->linkedHead, linkP, __ATOMIC_RELEASE);
+      else
+        __atomic_store_n(&mapP->linkedTail->next, linkP, __ATOMIC_RELEASE);
+      mapP->linkedTail = linkP;
+    }
+  }
+
+  pthread_rwlock_unlock(&storeP->lock);
 }
 
 
@@ -463,10 +512,15 @@ CorNode* ldEntityMapToTree(LdEntityMap* mapP)
 
   // linkedMaps: { "<csrId>": "<remoteMapId>", ... }  (§ 5.14.4.4)
   CorNode* linkedObj = corTreeObject(corRest.kallocP, "linkedMaps");
-  for (LdEntityMapLink* linkP = mapP->linkedHead; linkP != NULL; linkP = linkP->next)
+  for (LdEntityMapLink* linkP = mapP->linkedHead; linkP != NULL; linkP = __atomic_load_n(&linkP->next, __ATOMIC_ACQUIRE))
   {
     if (linkP->csrId == NULL || linkP->remoteMapId == NULL)
       continue;
+
+    // A CSR's map is its last link (ldEntityMapLinkedMapSet): an earlier one is not shown
+    if (ldEntityMapLinkedMapLookup(mapP, linkP->csrId) != linkP->remoteMapId)
+      continue;
+
     corTreeChildAdd(linkedObj, corTreeString(corRest.kallocP, linkP->csrId, linkP->remoteMapId));
   }
   corTreeChildAdd(treeP, linkedObj);
@@ -794,6 +848,28 @@ const char* ldEntityMapQueryParam(LdEntityMap* mapP, const char* key)
   {
     if (strcmp(mapP->queryParamV[2 * ix], key) == 0)
       return mapP->queryParamV[2 * ix + 1];
+  }
+
+  return NULL;
+}
+
+
+
+// -----------------------------------------------------------------------------
+//
+// ldEntityMapEntryLookup - the map's entry for an entity, NULL when the map does not hold it
+//
+// The entries are fixed once the map is in the store: read without a lock.
+//
+LdEntityMapEntry* ldEntityMapEntryLookup(LdEntityMap* mapP, const char* entityId)
+{
+  if ((mapP == NULL) || (entityId == NULL))
+    return NULL;
+
+  for (LdEntityMapEntry* entryP = mapP->head; entryP != NULL; entryP = entryP->next)
+  {
+    if ((entryP->entityId != NULL) && (strcmp(entryP->entityId, entityId) == 0))
+      return entryP;
   }
 
   return NULL;
