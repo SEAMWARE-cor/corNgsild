@@ -35,5 +35,6 @@
 // "observedAt" (default) | "modifiedAt" | "createdAt".
 //
 extern void ldToTemporalValues(CorNode* treeP, const char* timeProp, CorAlloc* allocP, CorAlloc* faP);
+extern void ldTemporalEmptyAttrsAdd(CorNode* entityP, CorNode* emptyAttrsP, CorAlloc* allocP);
 
 #endif  // CORNGSILD_LDTOTEMPORALVALUES_H_

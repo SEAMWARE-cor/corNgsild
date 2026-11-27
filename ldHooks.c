@@ -34,7 +34,7 @@
 #include "corNgsild/ldError.h"                            // ldError
 #include "corNgsild/ldEntityToApi.h"                      // ldEntityToApi
 #include "corNgsild/ldPickOmit.h"                         // ldPickOmit
-#include "corNgsild/ldToTemporalValues.h"                 // ldToTemporalValues
+#include "corNgsild/ldToTemporalValues.h"                 // ldToTemporalValues, ldTemporalEmptyAttrsAdd
 #include "corNgsild/ldToAggregatedValues.h"               // ldToAggregatedValues, ldIso8601DurationParse
 #include "corNgsild/ldToGeoJson.h"                        // ldToGeoJson
 #include "corNgsild/ldStripSysAttrs.h"                    // ldStripSysAttrs
@@ -1556,6 +1556,10 @@ static void ldRenderHook(void)
       ldToAggregatedValues(treeP, corNgsild.aggrMethodsV, period.months, period.ns, startNs, endNs,
                            corNgsild.timeproperty, corRest.kallocP, &corRest.kalloc);
     }
+
+    // Retrieve by id: the requested attributes with no instance in the range, without instances
+    if (corNgsild.temporalEmptyAttrsP != NULL)
+      ldTemporalEmptyAttrsAdd(treeP, corNgsild.temporalEmptyAttrsP, corRest.kallocP);
 
     // The strip postponed above, now that the timestamps have been read
     if ((corNgsild.sysAttrs == false) && temporalSimplified)
