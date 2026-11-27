@@ -136,6 +136,11 @@ typedef struct CorNgsild
   char**     aggrMethodsV;       // split (NULL-terminated)
   char*      aggrPeriodDuration; // ISO 8601 duration: PT1H, PT5M, P1D, ... (NULL = whole window)
 
+  // Retrieve Temporal Evolution of an Entity: the requested attributes the entity has, none with an instance in
+  // the range - { <expanded name>: "<attribute type>" }; the render hook adds each one without instances, in the
+  // format's shape (ldTemporalEmptyAttrsAdd). NULL: none
+  CorNode*   temporalEmptyAttrsP;
+
   // URL parameters — pagination
   int      limit;        // parsed limit value (default 20, set in preDispatchHook)
   int      offset;       // parsed offset value (default 0)

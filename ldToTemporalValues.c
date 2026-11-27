@@ -13,14 +13,14 @@
 
 #include "corAlloc/CorAlloc.h"                          // CorAlloc
 #include "corTree/CorNode.h"                             // CorNode
-#include "corTree/corTreeBuilder.h"                      // corTreeObject, corTreeArray, corTreeString
+#include "corTree/corTreeBuilder.h"                      // corTreeObject, corTreeArray, corTreeString, corTreeChildAdd
 #include "corTree/corTreeLookup.h"                       // corTreeLookup
 #include "corTree/corTreeClone.h"                        // corTreeClone
 
 #include "corJsonld/corLdCompact.h"                      // corLdCompact
 #include "corJsonld/corLdInit.h"                         // corLdCoreContext
 
-#include "corNgsild/CorNgsild.h"                         // corNgsild (for response @context)
+#include "corNgsild/CorNgsild.h"                         // corNgsild (response @context, format, aggrMethodsV)
 #include "corNgsild/ldIsEntityKeyword.h"                 // ldIsEntityKeyword
 #include "corNgsild/ldTermId.h"                           // ldTermId, CorTerm*
 #include "corNgsild/ldToTemporalValues.h"                 // Own interface
@@ -368,5 +368,55 @@ void ldToTemporalValues(CorNode* treeP, const char* timeProp, CorAlloc* allocP, 
   else
   {
     transformEntity(treeP, timeProp, allocP, faP);
+  }
+}
+
+
+
+// -----------------------------------------------------------------------------
+//
+// ldTemporalEmptyAttrsAdd - an entity's requested attributes with no instance in the range, each one added
+// without instances, in the shape of the requested format (after ldToTemporalValues / ldToAggregatedValues):
+//
+//   normalized        "<attr>": []
+//   temporalValues    "<attr>": { "type": <its type>, <values|objects|languageMaps|...>: [] }
+//   aggregatedValues  "<attr>": { "type": <its type>, <each aggrMethod>: [] } - a Property or a Relationship;
+//                     the other types are not aggregated: []
+//
+// emptyAttrsP: { <expanded name>: "<attribute type>" } (corNgsild.temporalEmptyAttrsP). The entity ID selects the
+// entity, attrs and the temporal query only project: an existing entity comes back whatever they leave
+//
+void ldTemporalEmptyAttrsAdd(CorNode* entityP, CorNode* emptyAttrsP, CorAlloc* allocP)
+{
+  if ((entityP == NULL) || (entityP->type != CorObject) || (emptyAttrsP == NULL))
+    return;
+
+  for (CorNode* eP = emptyAttrsP->value.head; eP != NULL; eP = eP->next)
+  {
+    if ((eP->name == NULL) || (eP->type != CorString) || (corTreeLookup(entityP, eP->name) != NULL))
+      continue;
+
+    const char* attrType = eP->value.s;
+    bool        aggr     = (corNgsild.format == LdFormatAggregatedValues) && (corNgsild.aggrMethodsV != NULL) &&
+                           ((strcmp(attrType, "Property") == 0) || (strcmp(attrType, "Relationship") == 0));
+    CorNode*    attrP;
+
+    if ((corNgsild.format == LdFormatTemporalValues) || aggr)
+    {
+      attrP = corTreeObject(allocP, eP->name);
+      corTreeChildAdd(attrP, corTreeString(allocP, "type", attrType));
+
+      if (aggr)
+      {
+        for (int i = 0; corNgsild.aggrMethodsV[i] != NULL; i++)
+          corTreeChildAdd(attrP, corTreeArray(allocP, corNgsild.aggrMethodsV[i]));
+      }
+      else
+        corTreeChildAdd(attrP, corTreeArray(allocP, valuesKeyForType(attrType)));
+    }
+    else
+      attrP = corTreeArray(allocP, eP->name);
+
+    corTreeChildAdd(entityP, attrP);
   }
 }
