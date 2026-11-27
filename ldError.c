@@ -58,7 +58,9 @@ void ldErrorFunction
   // corLogOut() rather than COR_E(): COR_E captures __FILE__ and __LINE__ at ITS OWN
   // call site, which would point every error in the broker at this line.
   //
-  corLogOut(fileName, lineNo, functionName, 'E', -1, "%d %s: %s", status, title, corRest.out.problemDetail);
+  // A 404 is a W, not an E: "no such resource" is an answer, not a failure.
+  //
+  corLogOut(fileName, lineNo, functionName, (status == 404)? 'W' : 'E', -1, "%d %s: %s", status, title, corRest.out.problemDetail);
 }
 
 
